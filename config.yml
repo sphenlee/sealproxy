@@ -13,12 +13,12 @@ filters:
           users:
             - ["alice", "123456"]
             - ["bob", "asdf"]
-  - basic:
-      user_base:
-        user_pass:
-          users:
-            - ["alice", "foo" ]
-            - ["bob", "bar"]
+#  - basic:
+#      user_base:
+#        user_pass:
+#          users:
+#            - ["alice", "foo" ]
+#            - ["bob", "bar"]
 
 target:
-  url: http://localhost:8000/
+  url: http://localhost:8080/

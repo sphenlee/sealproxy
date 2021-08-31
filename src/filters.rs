@@ -1,6 +1,7 @@
 mod basic;
 mod cookie_session;
 mod form_login;
+mod anonymous;
 
 pub use basic::BasicFilter;
 

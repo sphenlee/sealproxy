@@ -1,11 +1,12 @@
 use crate::config::BasicFilterConf;
 use crate::filters::{Filter, Next};
-use crate::session::{establish_session, Claims, AUDIENCE};
+use crate::session::{establish_session, Claims};
 use crate::userbase::{get_user_base, DynUserBase, LookupResult};
 use anyhow::Result;
-use hyper::header::{self, HeaderValue};
+use hyper::header;
 use hyper::{Body, Request, Response, StatusCode};
 use tracing::{debug, info, trace};
+use crate::target::add_header_claims;
 
 pub struct BasicFilter {
     user_base: Box<DynUserBase>,
@@ -86,15 +87,14 @@ impl Filter for BasicFilter {
                 }
                 LookupResult::Success => {
                     info!("successful basic auth login");
-                    let username = HeaderValue::from_str(basic_auth.username.as_ref())?;
-                    req.headers_mut().insert("X-Seal-Username", username);
 
                     let claims = Claims {
-                        aud: AUDIENCE.to_owned(),
-                        iss: "seal/basic".to_owned(),
-                        sub: basic_auth.username.clone(),
-                        exp: 0,
+                        issuer: "seal/basic".to_owned(),
+                        subject: basic_auth.username.clone(),
                     };
+
+                    add_header_claims(&mut req, claims.clone())?;
+
                     let resp = next.finish(req).await?;
                     establish_session(resp, claims)
                 }

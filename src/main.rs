@@ -38,16 +38,32 @@ impl State {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn enable_tracing() {
     let filter_layer = tracing_subscriber::EnvFilter::from_default_env();
-    let format_layer = tracing_subscriber::fmt::layer().pretty();
+    let format_layer = tracing_subscriber::fmt::layer();//.pretty();
     tracing_subscriber::registry()
         .with(filter_layer)
         .with(format_layer)
         .init();
+}
 
-    config::load("config.yml".as_ref())?;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    enable_tracing();
+
+    let app = clap::App::new("sealproxy")
+        .author("Steve Lee <sphen.lee@gmail.com>")
+        .arg(clap::Arg::with_name("config")
+            .long("--config")
+            .short("-c")
+            .takes_value(true)
+            .required(true));
+
+    let args = app.get_matches();
+
+    let config_arg = args.value_of("config").expect("config is mandatory");
+    config::load(config_arg.as_ref())?;
 
     let config = CONFIG.load_full().unwrap();
 

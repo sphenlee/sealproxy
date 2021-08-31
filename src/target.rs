@@ -3,6 +3,16 @@ use anyhow::Result;
 use hyper::{client::HttpConnector, Client};
 use hyper::{Body, Request, Response};
 use tracing::info;
+use crate::session::Claims;
+use std::convert::TryInto;
+
+pub fn add_header_claims(req: &mut Request<Body>, claims: Claims) -> Result<()> {
+    let headers = req.headers_mut();
+    headers.insert("X-Seal-Username", claims.subject.try_into()?);
+    headers.insert("X-Seal-Mechanism", claims.issuer.try_into()?);
+
+    Ok(())
+}
 
 #[tracing::instrument(skip(req, client))]
 pub async fn route(req: Request<Body>, client: Client<HttpConnector>) -> Result<Response<Body>> {
