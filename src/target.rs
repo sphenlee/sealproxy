@@ -21,8 +21,10 @@ pub async fn route(req: Request<Body>, client: Client<HttpConnector>) -> Result<
     let path = req.uri().path();
     assert!(path.starts_with("/"));
 
-    let url = config.target.url.join(&path[1..])?;
-    info!(target=%url, "request");
+    let mut url = config.target.url.join(&path[1..])?;
+    url.set_query(req.uri().path_and_query().and_then(|pnq| pnq.query()));
+
+    info!(src=%req.uri(), target=%url, "request");
 
     let (mut parts, body) = req.into_parts();
     parts.uri = url.as_str().parse()?;

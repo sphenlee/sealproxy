@@ -45,6 +45,21 @@ pub struct Target {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct AnonymousFilterConf {
+    pub paths: Vec<String>,
+    #[serde(default)]
+    pub not_paths: Vec<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct RedirectFilterConf {
+    pub location: String,
+    pub paths: Vec<String>,
+    #[serde(default)]
+    pub not_paths: Vec<String>,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct CookieSessionFilterConf {
     pub public_key_file: String,
 }
@@ -65,9 +80,11 @@ pub struct FormLoginConf {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterConf {
+    Anonymous(AnonymousFilterConf),
     CookieSession(CookieSessionFilterConf),
     Basic(BasicFilterConf),
     FormLogin(FormLoginConf),
+    Redirect(RedirectFilterConf),
 }
 
 #[derive(Deserialize, Debug)]

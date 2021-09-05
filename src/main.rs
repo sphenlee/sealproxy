@@ -14,6 +14,7 @@ mod filters;
 pub mod session;
 pub mod target;
 pub mod userbase;
+pub mod path_match;
 
 struct State {
     filters: FilterChain,

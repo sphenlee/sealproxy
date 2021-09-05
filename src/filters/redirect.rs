@@ -1,24 +1,26 @@
-use crate::config::AnonymousFilterConf;
+use crate::config::{RedirectFilterConf};
 use crate::filters::{Filter, Next};
 use anyhow::Result;
-use hyper::{Body, Request, Response};
+use hyper::{Body, Request, Response, StatusCode, header};
 use tracing::{info, trace, warn};
 use crate::path_match::PathMatch;
 
-pub struct AnonymousFilter {
+pub struct RedirectFilter {
+    location: String,
     matcher: PathMatch
 }
 
-impl AnonymousFilter {
-    pub fn new(config: &AnonymousFilterConf) -> Result<Self> {
-        Ok(AnonymousFilter {
+impl RedirectFilter {
+    pub fn new(config: &RedirectFilterConf) -> Result<Self> {
+        Ok(RedirectFilter {
+            location: config.location.clone(),
             matcher: PathMatch::new(&config.paths, &config.not_paths)?
         })
     }
 }
 
 #[async_trait::async_trait]
-impl Filter for AnonymousFilter {
+impl Filter for RedirectFilter {
     #[tracing::instrument(skip(self, req, next))]
     async fn apply(
         &self,
@@ -28,8 +30,10 @@ impl Filter for AnonymousFilter {
         let path = req.uri().path();
 
         if self.matcher.matches(path)? {
-            trace!(%path, "allowing anonymous path");
-            next.finish(req).await
+            Ok(Response::builder()
+                .status(StatusCode::SEE_OTHER)
+                .header(header::LOCATION, &self.location)
+                .body(Body::empty())?)
         } else {
             next.next(req).await
         }

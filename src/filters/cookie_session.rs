@@ -6,7 +6,7 @@ use cookie::Cookie;
 use hyper::header;
 use hyper::{Body, Request, Response};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
-use tracing::{info, trace, warn};
+use tracing::{debug, trace, warn};
 use crate::target::add_header_claims;
 
 pub struct CookieSessionFilter {
@@ -56,7 +56,7 @@ impl Filter for CookieSessionFilter {
         next: Next<'_>,
     ) -> anyhow::Result<Response<Body>> {
         if let Some(claims) = self.get_cookie(&req)? {
-            info!("valid session cookie provided");
+            debug!("valid session cookie provided");
 
             add_header_claims(&mut req, Claims {
                 issuer: claims.iss,

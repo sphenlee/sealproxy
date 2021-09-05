@@ -3,7 +3,7 @@ use crate::filters::{Filter, Next};
 use crate::session::{establish_session, Claims};
 use crate::userbase::{get_user_base, DynUserBase, LookupResult};
 use anyhow::Result;
-use hyper::header::{self, HeaderValue};
+use hyper::header;
 use hyper::{Body, Method, Request, Response, StatusCode};
 use serde::Deserialize;
 use tracing::{debug, info, trace};

@@ -2,8 +2,13 @@ server:
   bind: 127.0.0.1:3000
 
 filters:
+  - anonymous:
+      paths:
+        - "/static/**"
+
   - cookie_session:
       public_key_file: public.pem
+
   - form_login:
       path: /login
       success_redirect: /
@@ -13,12 +18,20 @@ filters:
           users:
             - ["alice", "123456"]
             - ["bob", "asdf"]
+
 #  - basic:
 #      user_base:
 #        user_pass:
 #          users:
 #            - ["alice", "foo" ]
 #            - ["bob", "bar"]
+
+  - redirect:
+      location: /login
+      paths:
+        - "/**"
+      not_paths:
+        - "/api/**"
 
 target:
   url: http://localhost:8080/

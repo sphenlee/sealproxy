@@ -2,6 +2,7 @@ mod basic;
 mod cookie_session;
 mod form_login;
 mod anonymous;
+mod redirect;
 
 pub use basic::BasicFilter;
 
@@ -12,6 +13,8 @@ use hyper::{Body, Request, Response, StatusCode};
 use crate::config::FilterConf;
 use crate::filters::cookie_session::CookieSessionFilter;
 use crate::filters::form_login::FormLoginFilter;
+use crate::filters::anonymous::AnonymousFilter;
+use crate::filters::redirect::RedirectFilter;
 
 type DynFilter = dyn Filter + Send + Sync + 'static;
 
@@ -63,6 +66,9 @@ impl FilterChain {
         let mut chain = FilterChain::new();
         for filter in config {
             match filter {
+                FilterConf::Anonymous(config) => {
+                    chain.add(AnonymousFilter::new(config)?);
+                }
                 FilterConf::Basic(config) => {
                     chain.add(BasicFilter::new(config)?);
                 }
@@ -71,9 +77,10 @@ impl FilterChain {
                 }
                 FilterConf::FormLogin(config) => {
                     chain.add(FormLoginFilter::new(config)?);
-                } // FilterConf::Match(config) => {
-                  //     chain.add(MatchDef::new(config)?);
-                  // }
+                }
+                FilterConf::Redirect(config) => {
+                    chain.add(RedirectFilter::new(config)?)
+                }
             }
         }
 
