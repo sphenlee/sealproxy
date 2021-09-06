@@ -1,6 +1,6 @@
 use crate::config::CONFIG;
 use crate::filters::FilterChain;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, StatusCode};
 use std::convert::Infallible;
@@ -8,6 +8,8 @@ use std::sync::Arc;
 use tracing::{info, warn};
 use tracing_subscriber::prelude::*;
 use uuid::Uuid;
+use crate::tls::get_server_tls_config;
+use hyper::server::conn::{AddrIncoming};
 
 mod config;
 mod filters;
@@ -15,6 +17,7 @@ pub mod session;
 pub mod target;
 pub mod userbase;
 pub mod path_match;
+mod tls;
 
 struct State {
     filters: FilterChain,
@@ -40,7 +43,7 @@ impl State {
 }
 
 fn enable_tracing() {
-    let filter_layer = tracing_subscriber::EnvFilter::from_default_env();
+    let filter_layer = tracing_subscriber::EnvFilter::from_env("SEALPROXY_LOG");
     let format_layer = tracing_subscriber::fmt::layer();//.pretty();
     tracing_subscriber::registry()
         .with(filter_layer)
@@ -48,9 +51,23 @@ fn enable_tracing() {
         .init();
 }
 
+macro_rules! mk_service {
+    ($state:expr) => {
+        make_service_fn(move |_conn| {
+            let state = $state.clone();
+            async move {
+                Ok::<_, Infallible>(service_fn(move |req| {
+                    let state = state.clone();
+                    state.handle(req)
+                }))
+            }
+        })
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let _ = dotenv::dotenv();
     enable_tracing();
 
     let app = clap::App::new("sealproxy")
@@ -72,26 +89,26 @@ async fn main() -> Result<()> {
         filters: FilterChain::from_config(config.filters.as_slice())?,
     });
 
-    let make_svc = make_service_fn(move |_conn| {
-        let state = state.clone();
-        async move {
-            Ok::<_, Infallible>(service_fn(move |req| {
-                let state = state.clone();
-                state.handle(req)
-            }))
-        }
-    });
-
     let bind = config.server.bind.as_deref().unwrap_or("0.0.0.0:8000");
+    let addr = bind.parse()?;
 
-    let addr = tokio::net::lookup_host(bind)
-        .await?
-        .next()
-        .ok_or_else(|| anyhow!("host lookup returned no hosts"))?;
+    let incoming = AddrIncoming::bind(&addr)?;
 
-    let server = hyper::Server::try_bind(&addr)?.serve(make_svc);
-    info!("server listening on {}", server.local_addr());
-    server.await?;
+    if let Some(tls_config) = &config.server.tls {
+        let server_config = get_server_tls_config(tls_config)?;
+
+        let tls = tls_listener::builder(server_config).listen(incoming);
+
+        let mk_service = mk_service!(state);
+
+        info!("server listening for HTTPS on {:?}", addr);
+        hyper::Server::builder(tls).serve(mk_service).await?;
+    } else {
+        let mk_service = mk_service!(state);
+
+        info!("server listening for HTTP on {:?}", addr);
+        hyper::Server::builder(incoming).serve(mk_service).await?;
+    }
 
     Ok(())
 }

@@ -25,3 +25,8 @@ time = "0.2"
 route-recognizer = "0.3.0"
 serde_urlencoded = "0.7.0"
 clap = "2.33.3"
+tls-listener = { version = "0.2.1", features = ["hyper-h1", "hyper-h2"] }
+rustls = "0.19.1"
+rustls-pemfile = "0.2.1"
+tokio-rustls = "0.22.0"
+dotenv = "0.15.0"

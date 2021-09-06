@@ -1,3 +1,6 @@
 /target
 *.pem
 .idea
+*.crt
+*.key
+.env

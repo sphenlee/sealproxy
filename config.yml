@@ -1,35 +1,35 @@
 server:
   bind: 127.0.0.1:3000
+  tls:
+    cert_file: localhost.crt
+    key_file: localhost.key
 
 filters:
   - anonymous:
       paths:
         - "/static/**"
 
-  - cookie_session:
-      public_key_file: public.pem
-
   - form_login:
       path: /login
       success_redirect: /
       failure_redirect: /login
-      user_base:
+      user_base: &userbase
         user_pass:
-          users:
+          users: &users
             - ["alice", "123456"]
             - ["bob", "asdf"]
 
-#  - basic:
-#      user_base:
-#        user_pass:
-#          users:
-#            - ["alice", "foo" ]
-#            - ["bob", "bar"]
+  - cookie_session:
+      public_key_file: public.pem
+
+  - basic:
+      user_base: *userbase
 
   - redirect:
       location: /login
       paths:
         - "/**"
+        - "/"
       not_paths:
         - "/api/**"
 

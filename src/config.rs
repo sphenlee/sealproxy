@@ -9,8 +9,15 @@ use url::Url;
 pub static CONFIG: Lazy<ArcSwapOption<Config>> = Lazy::new(|| ArcSwapOption::empty());
 
 #[derive(Deserialize, Debug)]
+pub struct TlsConfig {
+    pub cert_file: String,
+    pub key_file: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct Server {
     pub bind: Option<String>,
+    pub tls: Option<TlsConfig>,
 }
 
 // #[derive(Deserialize, Debug)]
