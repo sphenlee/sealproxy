@@ -22,8 +22,8 @@ filters:
   - cookie_session:
       public_key_file: public.pem
 
-  - basic:
-      user_base: *userbase
+  #- basic:
+  #    user_base: *userbase
 
   - redirect:
       location: /login

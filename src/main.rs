@@ -10,6 +10,8 @@ use tracing_subscriber::prelude::*;
 use uuid::Uuid;
 use crate::tls::get_server_tls_config;
 use hyper::server::conn::{AddrIncoming};
+use futures_util::StreamExt;
+use hyper::server::accept;
 
 mod config;
 mod filters;
@@ -97,12 +99,21 @@ async fn main() -> Result<()> {
     if let Some(tls_config) = &config.server.tls {
         let server_config = get_server_tls_config(tls_config)?;
 
-        let tls = tls_listener::builder(server_config).listen(incoming);
+        let tls = tls_listener::builder(server_config)
+            .listen(incoming)
+            .filter(|conn| {
+                if let Err(err) = conn {
+                    warn!("error accepting HTTPS connection: {}", err);
+                    std::future::ready(false)
+                } else {
+                    std::future::ready(true)
+                }
+            });
 
         let mk_service = mk_service!(state);
 
         info!("server listening for HTTPS on {:?}", addr);
-        hyper::Server::builder(tls).serve(mk_service).await?;
+        hyper::Server::builder(accept::from_stream(tls)).serve(mk_service).await?;
     } else {
         let mk_service = mk_service!(state);
 
