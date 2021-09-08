@@ -53,7 +53,7 @@ impl Filter for FormLoginFilter {
         mut req: Request<Body>,
         next: Next<'_>,
     ) -> anyhow::Result<Response<Body>> {
-        if req.uri().path() == self.path  {
+        if req.uri().path() == self.path {
             if req.method() == Method::POST {
                 trace!("post to login path");
                 let body = hyper::body::to_bytes(req.body_mut()).await?;

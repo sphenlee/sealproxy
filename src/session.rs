@@ -28,12 +28,12 @@ pub fn establish_session(mut resp: Response<Body>, claims: Claims) -> Result<Res
     // TODO - store this in config and load the key only at startup
     let pem = std::fs::read("private.pem")?;
     let encoding_key = EncodingKey::from_rsa_pem(pem.as_ref())?;
-    
+
     let jwt_claims = JwtClaims {
         aud: AUDIENCE.to_owned(),
         iss: claims.issuer,
         sub: claims.subject,
-        exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp()
+        exp: (OffsetDateTime::now_utc() + Duration::days(1)).unix_timestamp(),
     };
 
     let header = Header::new(Algorithm::RS256);

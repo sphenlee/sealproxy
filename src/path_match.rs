@@ -18,9 +18,7 @@ impl PathMatch {
             not_router.add(path.as_ref(), ());
         }
 
-        Ok(Self {
-            router, not_router
-        })
+        Ok(Self { router, not_router })
     }
 
     pub fn matches(&self, path: &str) -> Result<bool> {

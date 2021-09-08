@@ -1,13 +1,13 @@
 use crate::config::CookieSessionFilterConf;
 use crate::filters::{Filter, Next};
-use crate::session::{AUDIENCE, SESSION_COOKIE, JwtClaims, Claims};
+use crate::session::{Claims, JwtClaims, AUDIENCE, SESSION_COOKIE};
+use crate::target::add_header_claims;
 use anyhow::Result;
 use cookie::Cookie;
 use hyper::header;
 use hyper::{Body, Request, Response};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use tracing::{debug, trace, warn};
-use crate::target::add_header_claims;
 
 pub struct CookieSessionFilter {
     decoding_key: DecodingKey<'static>,
@@ -58,10 +58,13 @@ impl Filter for CookieSessionFilter {
         if let Some(claims) = self.get_cookie(&req)? {
             debug!("valid session cookie provided");
 
-            add_header_claims(&mut req, Claims {
-                issuer: claims.iss,
-                subject: claims.sub,
-            })?;
+            add_header_claims(
+                &mut req,
+                Claims {
+                    issuer: claims.iss,
+                    subject: claims.sub,
+                },
+            )?;
 
             next.finish(req).await
         } else {

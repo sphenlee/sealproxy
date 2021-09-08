@@ -1,9 +1,9 @@
+use crate::session::Claims;
 use anyhow::Result;
 use hyper::{client::HttpConnector, Client};
 use hyper::{Body, Request, Response};
-use tracing::info;
-use crate::session::Claims;
 use std::convert::TryInto;
+use tracing::info;
 use url::Url;
 
 pub fn add_header_claims(req: &mut Request<Body>, claims: Claims) -> Result<()> {
@@ -15,7 +15,11 @@ pub fn add_header_claims(req: &mut Request<Body>, claims: Claims) -> Result<()> 
 }
 
 #[tracing::instrument(skip(req, client, target))]
-pub async fn route(req: Request<Body>, client: Client<HttpConnector>, target: Url) -> Result<Response<Body>> {
+pub async fn route(
+    req: Request<Body>,
+    client: Client<HttpConnector>,
+    target: Url,
+) -> Result<Response<Body>> {
     let path = req.uri().path();
     assert!(path.starts_with("/"));
 

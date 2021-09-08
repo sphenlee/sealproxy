@@ -1,12 +1,12 @@
-use anyhow::{Result, Context};
-use std::io::BufReader;
-use std::fs::File;
-use crate::config::{TlsConfig};
+use crate::config::TlsConfig;
+use anyhow::{Context, Result};
 use rustls::{Certificate, PrivateKey, ServerConfig};
+use std::fs::File;
+use std::io::BufReader;
 
 fn load_certs(filename: &str) -> Result<Vec<Certificate>> {
-    let certfile = File::open(filename)
-        .context(format!("error opening tls certificates: {}", filename))?;
+    let certfile =
+        File::open(filename).context(format!("error opening tls certificates: {}", filename))?;
 
     let mut reader = BufReader::new(certfile);
     Ok(rustls_pemfile::certs(&mut reader)
@@ -17,14 +17,13 @@ fn load_certs(filename: &str) -> Result<Vec<Certificate>> {
 }
 
 fn load_private_key(filename: &str) -> Result<PrivateKey> {
-    let keyfile = File::open(filename)
-        .context(format!("error opening tls keyfile: {}", filename))?;
+    let keyfile =
+        File::open(filename).context(format!("error opening tls keyfile: {}", filename))?;
 
     let mut reader = BufReader::new(keyfile);
 
     loop {
-        let item = rustls_pemfile::read_one(&mut reader)
-            .context("error parsing tls keyfile")?;
+        let item = rustls_pemfile::read_one(&mut reader).context("error parsing tls keyfile")?;
 
         match item {
             Some(rustls_pemfile::Item::RSAKey(key)) => return Ok(PrivateKey(key)),

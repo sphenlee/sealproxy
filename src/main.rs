@@ -1,27 +1,27 @@
 use crate::config::Config;
 use crate::filters::FilterChain;
+use crate::tls::get_server_tls_config;
 use anyhow::Result;
+use arc_swap::ArcSwapOption;
+use futures_util::StreamExt;
+use hyper::server::accept;
+use hyper::server::conn::AddrIncoming;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, StatusCode};
+use once_cell::sync::Lazy;
 use std::convert::Infallible;
 use std::sync::Arc;
 use tracing::{info, warn};
 use uuid::Uuid;
-use crate::tls::get_server_tls_config;
-use hyper::server::conn::{AddrIncoming};
-use futures_util::StreamExt;
-use hyper::server::accept;
-use arc_swap::ArcSwapOption;
-use once_cell::sync::Lazy;
 
 mod config;
 mod filters;
+mod logging;
+pub mod path_match;
 pub mod session;
 pub mod target;
-pub mod userbase;
-pub mod path_match;
 mod tls;
-mod logging;
+pub mod userbase;
 
 struct State {
     config: Config,
@@ -32,13 +32,9 @@ impl State {
     pub fn from_config(config: Config) -> Result<State> {
         let filters = FilterChain::from_config(&config)?;
 
-        Ok(State {
-            config,
-            filters,
-        })
+        Ok(State { config, filters })
     }
 }
-
 
 static STATE: Lazy<ArcSwapOption<State>> = Lazy::new(ArcSwapOption::empty);
 
@@ -63,14 +59,10 @@ async fn handle(req: Request<Body>) -> hyper::http::Result<Response<Body>> {
 
 macro_rules! mk_service {
     ($state:expr) => {
-        make_service_fn(move |_conn| {
-            async move {
-                Ok::<_, Infallible>(service_fn(move |req| {
-                    handle(req)
-                }))
-            }
+        make_service_fn(move |_conn| async move {
+            Ok::<_, Infallible>(service_fn(move |req| handle(req)))
         })
-    }
+    };
 }
 
 #[tokio::main]
@@ -81,11 +73,13 @@ async fn main() -> Result<()> {
 
     let app = clap::App::new("sealproxy")
         .author("Steve Lee <sphen.lee@gmail.com>")
-        .arg(clap::Arg::with_name("config")
-            .long("--config")
-            .short("-c")
-            .takes_value(true)
-            .required(true));
+        .arg(
+            clap::Arg::with_name("config")
+                .long("--config")
+                .short("-c")
+                .takes_value(true)
+                .required(true),
+        );
 
     let args = app.get_matches();
 
@@ -95,7 +89,12 @@ async fn main() -> Result<()> {
     let state = Arc::new(State::from_config(config)?);
     STATE.store(Some(state.clone()));
 
-    let bind = state.config.server.bind.as_deref().unwrap_or("0.0.0.0:8000");
+    let bind = state
+        .config
+        .server
+        .bind
+        .as_deref()
+        .unwrap_or("0.0.0.0:8000");
     let addr = bind.parse()?;
 
     let incoming = AddrIncoming::bind(&addr)?;
@@ -117,7 +116,9 @@ async fn main() -> Result<()> {
         let mk_service = mk_service!(state);
 
         info!("server listening for HTTPS on {:?}", addr);
-        hyper::Server::builder(accept::from_stream(tls)).serve(mk_service).await?;
+        hyper::Server::builder(accept::from_stream(tls))
+            .serve(mk_service)
+            .await?;
     } else {
         let mk_service = mk_service!(state);
 

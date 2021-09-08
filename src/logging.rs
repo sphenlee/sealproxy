@@ -42,9 +42,9 @@ impl Visit for SemiCompactVisitor {
 struct SemiCompact;
 
 impl<C, N> FormatEvent<C, N> for SemiCompact
-    where
-        C: Subscriber + for<'a> LookupSpan<'a>,
-        N: for<'a> FormatFields<'a> + 'static,
+where
+    C: Subscriber + for<'a> LookupSpan<'a>,
+    N: for<'a> FormatFields<'a> + 'static,
 {
     fn format_event(
         &self,
@@ -74,7 +74,6 @@ impl<C, N> FormatEvent<C, N> for SemiCompact
                 }
             }
         }
-
 
         Ok(())
     }

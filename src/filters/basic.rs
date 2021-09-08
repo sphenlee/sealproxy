@@ -1,12 +1,12 @@
 use crate::config::BasicFilterConf;
 use crate::filters::{Filter, Next};
 use crate::session::{establish_session, Claims};
+use crate::target::add_header_claims;
 use crate::userbase::{get_user_base, DynUserBase, LookupResult};
 use anyhow::Result;
 use hyper::header;
 use hyper::{Body, Request, Response, StatusCode};
 use tracing::{debug, info, trace};
-use crate::target::add_header_claims;
 
 pub struct BasicFilter {
     user_base: Box<DynUserBase>,

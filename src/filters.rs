@@ -1,7 +1,7 @@
+mod anonymous;
 mod basic;
 mod cookie_session;
 mod form_login;
-mod anonymous;
 mod redirect;
 
 pub use basic::BasicFilter;
@@ -10,10 +10,10 @@ use anyhow::Result;
 use hyper::{client::HttpConnector, Client};
 use hyper::{Body, Request, Response, StatusCode};
 
-use crate::config::{FilterConf, Config};
+use crate::config::{Config, FilterConf};
+use crate::filters::anonymous::AnonymousFilter;
 use crate::filters::cookie_session::CookieSessionFilter;
 use crate::filters::form_login::FormLoginFilter;
-use crate::filters::anonymous::AnonymousFilter;
 use crate::filters::redirect::RedirectFilter;
 use url::Url;
 
@@ -80,9 +80,7 @@ impl FilterChain {
                 FilterConf::FormLogin(config) => {
                     chain.add(FormLoginFilter::new(config)?);
                 }
-                FilterConf::Redirect(config) => {
-                    chain.add(RedirectFilter::new(config)?)
-                }
+                FilterConf::Redirect(config) => chain.add(RedirectFilter::new(config)?),
             }
         }
 
