@@ -2,7 +2,6 @@ use crate::config::{RedirectFilterConf};
 use crate::filters::{Filter, Next};
 use anyhow::Result;
 use hyper::{Body, Request, Response, StatusCode, header};
-use tracing::{info, trace, warn};
 use crate::path_match::PathMatch;
 
 pub struct RedirectFilter {

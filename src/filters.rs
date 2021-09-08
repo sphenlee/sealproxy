@@ -10,16 +10,18 @@ use anyhow::Result;
 use hyper::{client::HttpConnector, Client};
 use hyper::{Body, Request, Response, StatusCode};
 
-use crate::config::FilterConf;
+use crate::config::{FilterConf, Config};
 use crate::filters::cookie_session::CookieSessionFilter;
 use crate::filters::form_login::FormLoginFilter;
 use crate::filters::anonymous::AnonymousFilter;
 use crate::filters::redirect::RedirectFilter;
+use url::Url;
 
 type DynFilter = dyn Filter + Send + Sync + 'static;
 
 pub struct Next<'a> {
     client: hyper::Client<hyper::client::HttpConnector>,
+    target: Url,
     rest: &'a [Box<DynFilter>],
 }
 
@@ -29,6 +31,7 @@ impl Next<'_> {
             Some((head, rest)) => {
                 let next = Next {
                     client: self.client,
+                    target: self.target,
                     rest,
                 };
                 head.apply(req, next).await
@@ -40,7 +43,7 @@ impl Next<'_> {
     }
 
     pub async fn finish(self, req: Request<Body>) -> Result<Response<Body>> {
-        crate::target::route(req, self.client).await
+        crate::target::route(req, self.client, self.target).await
     }
 }
 
@@ -51,20 +54,19 @@ pub trait Filter {
 
 pub struct FilterChain {
     client: Client<HttpConnector>,
+    target: Url,
     filters: Vec<Box<DynFilter>>,
 }
 
 impl FilterChain {
-    pub fn new() -> FilterChain {
-        FilterChain {
+    pub fn from_config(config: &Config) -> Result<FilterChain> {
+        let mut chain = FilterChain {
             client: Client::new(),
+            target: config.target.url.clone(),
             filters: vec![],
-        }
-    }
+        };
 
-    pub fn from_config(config: &[FilterConf]) -> Result<FilterChain> {
-        let mut chain = FilterChain::new();
-        for filter in config {
+        for filter in &config.filters {
             match filter {
                 FilterConf::Anonymous(config) => {
                     chain.add(AnonymousFilter::new(config)?);
@@ -94,6 +96,7 @@ impl FilterChain {
     pub async fn apply(&self, req: Request<Body>) -> Result<Response<Body>> {
         let next = Next {
             client: self.client.clone(),
+            target: self.target.clone(),
             rest: self.filters.as_slice(),
         };
         next.next(req).await

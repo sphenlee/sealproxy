@@ -2,7 +2,7 @@ use crate::config::AnonymousFilterConf;
 use crate::filters::{Filter, Next};
 use anyhow::Result;
 use hyper::{Body, Request, Response};
-use tracing::{info, trace, warn};
+use tracing::trace;
 use crate::path_match::PathMatch;
 
 pub struct AnonymousFilter {

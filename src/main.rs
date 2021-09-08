@@ -1,4 +1,4 @@
-use crate::config::CONFIG;
+use crate::config::Config;
 use crate::filters::FilterChain;
 use anyhow::Result;
 use hyper::service::{make_service_fn, service_fn};
@@ -6,12 +6,13 @@ use hyper::{Body, Request, Response, StatusCode};
 use std::convert::Infallible;
 use std::sync::Arc;
 use tracing::{info, warn};
-use tracing_subscriber::prelude::*;
 use uuid::Uuid;
 use crate::tls::get_server_tls_config;
 use hyper::server::conn::{AddrIncoming};
 use futures_util::StreamExt;
 use hyper::server::accept;
+use arc_swap::ArcSwapOption;
+use once_cell::sync::Lazy;
 
 mod config;
 mod filters;
@@ -20,47 +21,52 @@ pub mod target;
 pub mod userbase;
 pub mod path_match;
 mod tls;
+mod logging;
 
 struct State {
+    config: Config,
     filters: FilterChain,
 }
 
 impl State {
-    #[tracing::instrument(
-        skip(self, req),
-        fields(
-            url = % req.uri(),
-            method = % req.method(),
-            request_id = % Uuid::new_v4().to_string(),
-        )
-    )]
-    async fn handle(self: Arc<Self>, req: Request<Body>) -> hyper::http::Result<Response<Body>> {
-        self.filters.apply(req).await.or_else(|err| {
-            warn!(?err, "internal server error");
-            Response::builder()
-                .status(StatusCode::UNAUTHORIZED)
-                .body(Body::empty())
+    pub fn from_config(config: Config) -> Result<State> {
+        let filters = FilterChain::from_config(&config)?;
+
+        Ok(State {
+            config,
+            filters,
         })
     }
 }
 
-fn enable_tracing() {
-    let filter_layer = tracing_subscriber::EnvFilter::from_env("SEALPROXY_LOG");
-    let format_layer = tracing_subscriber::fmt::layer();//.pretty();
-    tracing_subscriber::registry()
-        .with(filter_layer)
-        .with(format_layer)
-        .init();
+
+static STATE: Lazy<ArcSwapOption<State>> = Lazy::new(ArcSwapOption::empty);
+
+#[tracing::instrument(
+    skip(req),
+    fields(
+        url = % req.uri(),
+        method = % req.method(),
+        request_id = % Uuid::new_v4().to_string(),
+    )
+)]
+async fn handle(req: Request<Body>) -> hyper::http::Result<Response<Body>> {
+    let state = STATE.load_full().expect("state unset?");
+
+    state.filters.apply(req).await.or_else(|err| {
+        warn!(?err, "internal server error");
+        Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .body(Body::empty())
+    })
 }
 
 macro_rules! mk_service {
     ($state:expr) => {
         make_service_fn(move |_conn| {
-            let state = $state.clone();
             async move {
                 Ok::<_, Infallible>(service_fn(move |req| {
-                    let state = state.clone();
-                    state.handle(req)
+                    handle(req)
                 }))
             }
         })
@@ -70,7 +76,8 @@ macro_rules! mk_service {
 #[tokio::main]
 async fn main() -> Result<()> {
     let _ = dotenv::dotenv();
-    enable_tracing();
+
+    logging::setup().expect("logging setup failed");
 
     let app = clap::App::new("sealproxy")
         .author("Steve Lee <sphen.lee@gmail.com>")
@@ -83,20 +90,17 @@ async fn main() -> Result<()> {
     let args = app.get_matches();
 
     let config_arg = args.value_of("config").expect("config is mandatory");
-    config::load(config_arg.as_ref())?;
+    let config = config::load(config_arg.as_ref())?;
 
-    let config = CONFIG.load_full().unwrap();
+    let state = Arc::new(State::from_config(config)?);
+    STATE.store(Some(state.clone()));
 
-    let state = Arc::new(State {
-        filters: FilterChain::from_config(config.filters.as_slice())?,
-    });
-
-    let bind = config.server.bind.as_deref().unwrap_or("0.0.0.0:8000");
+    let bind = state.config.server.bind.as_deref().unwrap_or("0.0.0.0:8000");
     let addr = bind.parse()?;
 
     let incoming = AddrIncoming::bind(&addr)?;
 
-    if let Some(tls_config) = &config.server.tls {
+    if let Some(tls_config) = &state.config.server.tls {
         let server_config = get_server_tls_config(tls_config)?;
 
         let tls = tls_listener::builder(server_config)

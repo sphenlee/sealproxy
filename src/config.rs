@@ -1,12 +1,7 @@
 use anyhow::{Context, Result};
-use arc_swap::ArcSwapOption;
-use once_cell::sync::Lazy;
 use serde::Deserialize;
 use std::path::Path;
-use std::sync::Arc;
 use url::Url;
-
-pub static CONFIG: Lazy<ArcSwapOption<Config>> = Lazy::new(|| ArcSwapOption::empty());
 
 #[derive(Deserialize, Debug)]
 pub struct TlsConfig {
@@ -101,12 +96,11 @@ pub struct Config {
     pub filters: Vec<FilterConf>,
 }
 
-pub fn load(path: &Path) -> Result<()> {
+pub fn load(path: &Path) -> Result<Config> {
     let reader = std::fs::File::open(path)
         .with_context(|| format!("Error loading config file: {}", path.to_string_lossy()))?;
-    let config = Arc::new(serde_yaml::from_reader(reader)?);
 
-    CONFIG.store(Some(config));
+    let config = serde_yaml::from_reader(reader)?;
 
-    Ok(())
+    Ok(config)
 }
