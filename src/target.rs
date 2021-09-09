@@ -26,7 +26,7 @@ pub async fn route(
     let mut url = target.join(&path[1..])?;
     url.set_query(req.uri().path_and_query().and_then(|pnq| pnq.query()));
 
-    info!(src=%req.uri(), target=%url, "request");
+    info!(target=%url, "request");
 
     let (mut parts, body) = req.into_parts();
     parts.uri = url.as_str().parse()?;

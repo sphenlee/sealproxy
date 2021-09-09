@@ -33,3 +33,4 @@ dotenv = "0.15.0"
 futures-util = "0.3.17"
 colored = "2.0.0"
 chrono = "0.4.19"
+inotify = { version = "0.9.3", features = ["stream"] }
