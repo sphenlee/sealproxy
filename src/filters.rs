@@ -19,22 +19,22 @@ use url::Url;
 
 type DynFilter = dyn Filter + Send + Sync + 'static;
 
-pub struct Next<'a> {
+pub struct Context<'a> {
     client: hyper::Client<hyper::client::HttpConnector>,
     target: Url,
     rest: &'a [Box<DynFilter>],
 }
 
-impl Next<'_> {
+impl Context<'_> {
     pub async fn next(self, req: Request<Body>) -> Result<Response<Body>> {
         match self.rest.split_first() {
             Some((head, rest)) => {
-                let next = Next {
+                let ctx = Context {
                     client: self.client,
                     target: self.target,
                     rest,
                 };
-                head.apply(req, next).await
+                head.apply(req, ctx).await
             }
             None => Ok(Response::builder()
                 .status(StatusCode::UNAUTHORIZED)
@@ -49,7 +49,7 @@ impl Next<'_> {
 
 #[async_trait::async_trait]
 pub trait Filter {
-    async fn apply(&self, req: Request<Body>, next: Next<'_>) -> Result<Response<Body>>;
+    async fn apply(&self, req: Request<Body>, ctx: Context<'_>) -> Result<Response<Body>>;
 }
 
 pub struct FilterChain {
@@ -92,11 +92,11 @@ impl FilterChain {
     }
 
     pub async fn apply(&self, req: Request<Body>) -> Result<Response<Body>> {
-        let next = Next {
+        let ctx = Context {
             client: self.client.clone(),
             target: self.target.clone(),
             rest: self.filters.as_slice(),
         };
-        next.next(req).await
+        ctx.next(req).await
     }
 }

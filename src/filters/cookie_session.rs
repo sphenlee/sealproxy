@@ -1,5 +1,5 @@
 use crate::config::CookieSessionFilterConf;
-use crate::filters::{Filter, Next};
+use crate::filters::{Filter, Context};
 use crate::session::{Claims, JwtClaims, AUDIENCE, SESSION_COOKIE};
 use crate::target::add_header_claims;
 use anyhow::Result;
@@ -49,12 +49,12 @@ impl CookieSessionFilter {
 
 #[async_trait::async_trait]
 impl Filter for CookieSessionFilter {
-    #[tracing::instrument(skip(self, req, next))]
+    #[tracing::instrument(skip(self, req, ctx))]
     async fn apply(
         &self,
         mut req: Request<Body>,
-        next: Next<'_>,
-    ) -> anyhow::Result<Response<Body>> {
+        ctx: Context<'_>,
+    ) -> Result<Response<Body>> {
         if let Some(claims) = self.get_cookie(&req)? {
             debug!("valid session cookie provided");
 
@@ -66,10 +66,10 @@ impl Filter for CookieSessionFilter {
                 },
             )?;
 
-            next.finish(req).await
+            ctx.finish(req).await
         } else {
             trace!("no session cookie provided");
-            next.next(req).await
+            ctx.next(req).await
         }
     }
 }

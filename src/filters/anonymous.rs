@@ -1,5 +1,5 @@
 use crate::config::AnonymousFilterConf;
-use crate::filters::{Filter, Next};
+use crate::filters::{Filter, Context};
 use crate::path_match::PathMatch;
 use anyhow::Result;
 use hyper::{Body, Request, Response};
@@ -19,15 +19,15 @@ impl AnonymousFilter {
 
 #[async_trait::async_trait]
 impl Filter for AnonymousFilter {
-    #[tracing::instrument(skip(self, req, next))]
-    async fn apply(&self, req: Request<Body>, next: Next<'_>) -> anyhow::Result<Response<Body>> {
+    #[tracing::instrument(skip(self, req, ctx))]
+    async fn apply(&self, req: Request<Body>, ctx: Context<'_>) -> Result<Response<Body>> {
         let path = req.uri().path();
 
         if self.matcher.matches(path)? {
             trace!(%path, "allowing anonymous path");
-            next.finish(req).await
+            ctx.finish(req).await
         } else {
-            next.next(req).await
+            ctx.next(req).await
         }
     }
 }

@@ -1,5 +1,5 @@
 use crate::config::RedirectFilterConf;
-use crate::filters::{Filter, Next};
+use crate::filters::{Filter, Context};
 use crate::path_match::PathMatch;
 use anyhow::Result;
 use hyper::{header, Body, Request, Response, StatusCode};
@@ -20,8 +20,8 @@ impl RedirectFilter {
 
 #[async_trait::async_trait]
 impl Filter for RedirectFilter {
-    #[tracing::instrument(skip(self, req, next))]
-    async fn apply(&self, req: Request<Body>, next: Next<'_>) -> anyhow::Result<Response<Body>> {
+    #[tracing::instrument(skip(self, req, ctx))]
+    async fn apply(&self, req: Request<Body>, ctx: Context<'_>) -> Result<Response<Body>> {
         let path = req.uri().path();
 
         if self.matcher.matches(path)? {
@@ -30,7 +30,7 @@ impl Filter for RedirectFilter {
                 .header(header::LOCATION, &self.location)
                 .body(Body::empty())?)
         } else {
-            next.next(req).await
+            ctx.next(req).await
         }
     }
 }
