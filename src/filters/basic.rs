@@ -1,5 +1,5 @@
 use crate::config::BasicFilterConf;
-use crate::filters::{Filter, Context};
+use crate::filters::{Context, Filter};
 use crate::session::{establish_session, Claims};
 use crate::target::add_header_claims;
 use crate::userbase::{get_user_base, DynUserBase, LookupResult};
@@ -66,11 +66,7 @@ fn get_basic_auth(req: &Request<Body>) -> Result<Option<BasicAuth>> {
 #[async_trait::async_trait]
 impl Filter for BasicFilter {
     #[tracing::instrument(skip(self, req, ctx))]
-    async fn apply(
-        &self,
-        mut req: Request<Body>,
-        ctx: Context<'_>,
-    ) -> Result<Response<Body>> {
+    async fn apply(&self, mut req: Request<Body>, ctx: Context<'_>) -> Result<Response<Body>> {
         if let Some(basic_auth) = get_basic_auth(&req)? {
             return match self
                 .user_base

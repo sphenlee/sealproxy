@@ -4,7 +4,7 @@ use hyper::{client::HttpConnector, Client};
 use hyper::{Body, Request, Response};
 use std::convert::TryInto;
 use tracing::info;
-use url::Url;
+use crate::config::Target;
 
 pub fn add_header_claims(req: &mut Request<Body>, claims: Claims) -> Result<()> {
     let headers = req.headers_mut();
@@ -18,12 +18,12 @@ pub fn add_header_claims(req: &mut Request<Body>, claims: Claims) -> Result<()> 
 pub async fn route(
     req: Request<Body>,
     client: Client<HttpConnector>,
-    target: Url,
+    target: &Target,
 ) -> Result<Response<Body>> {
     let path = req.uri().path();
     assert!(path.starts_with("/"));
 
-    let mut url = target.join(&path[1..])?;
+    let mut url = target.url.join(&path[1..])?;
     url.set_query(req.uri().path_and_query().and_then(|pnq| pnq.query()));
 
     info!(target=%url, "request");

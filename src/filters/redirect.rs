@@ -1,5 +1,5 @@
 use crate::config::RedirectFilterConf;
-use crate::filters::{Filter, Context};
+use crate::filters::{Context, Filter};
 use crate::path_match::PathMatch;
 use anyhow::Result;
 use hyper::{header, Body, Request, Response, StatusCode};

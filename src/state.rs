@@ -1,19 +1,24 @@
-use crate::config;
-use crate::config::Config;
-use crate::filters::FilterChain;
+use std::path::Path;
+use std::sync::Arc;
+
 use anyhow::Result;
 use arc_swap::ArcSwapOption;
 use futures_util::stream::StreamExt;
+use hyper::{Body, Request, Response};
+use hyper::client::{Client, HttpConnector};
 use inotify::{EventOwned, WatchMask};
 use once_cell::sync::Lazy;
-use std::path::Path;
-use std::sync::Arc;
 use tracing::{trace, warn};
+
+use crate::config;
+use crate::config::Config;
+use crate::filters::{Context, FilterChain};
 
 pub static STATE: Lazy<ArcSwapOption<State>> = Lazy::new(ArcSwapOption::empty);
 
 pub struct State {
     pub config: Config,
+    client: Client<HttpConnector>,
     pub filters: FilterChain,
 }
 
@@ -21,7 +26,16 @@ impl State {
     pub fn from_config(config: Config) -> Result<State> {
         let filters = FilterChain::from_config(&config)?;
 
-        Ok(State { config, filters })
+        Ok(State {
+            config,
+            client: Client::new(),
+            filters,
+        })
+    }
+
+    pub async fn handle(&self, req: Request<Body>) -> Result<Response<Body>> {
+        let ctx = Context::new(&self.config, &self.filters, self.client.clone());
+        ctx.next(req).await
     }
 }
 

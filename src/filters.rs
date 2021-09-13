@@ -15,23 +15,30 @@ use crate::filters::anonymous::AnonymousFilter;
 use crate::filters::cookie_session::CookieSessionFilter;
 use crate::filters::form_login::FormLoginFilter;
 use crate::filters::redirect::RedirectFilter;
-use url::Url;
 
 type DynFilter = dyn Filter + Send + Sync + 'static;
 
 pub struct Context<'a> {
-    client: hyper::Client<hyper::client::HttpConnector>,
-    target: Url,
+    config: &'a Config,
+    client: Client<HttpConnector>,
     rest: &'a [Box<DynFilter>],
 }
 
-impl Context<'_> {
+impl<'a> Context<'a> {
+    pub fn new(config: &'a Config, filters: &'a FilterChain, client: Client<HttpConnector>) -> Self {
+        Context {
+            config,
+            client,
+            rest: filters.as_ref(),
+        }
+    }
+
     pub async fn next(self, req: Request<Body>) -> Result<Response<Body>> {
         match self.rest.split_first() {
             Some((head, rest)) => {
                 let ctx = Context {
                     client: self.client,
-                    target: self.target,
+                    config: self.config,
                     rest,
                 };
                 head.apply(req, ctx).await
@@ -43,7 +50,7 @@ impl Context<'_> {
     }
 
     pub async fn finish(self, req: Request<Body>) -> Result<Response<Body>> {
-        crate::target::route(req, self.client, self.target).await
+        crate::target::route(req, self.client, &self.config.target).await
     }
 }
 
@@ -53,18 +60,12 @@ pub trait Filter {
 }
 
 pub struct FilterChain {
-    client: Client<HttpConnector>,
-    target: Url,
     filters: Vec<Box<DynFilter>>,
 }
 
 impl FilterChain {
     pub fn from_config(config: &Config) -> Result<FilterChain> {
-        let mut chain = FilterChain {
-            client: Client::new(),
-            target: config.target.url.clone(),
-            filters: vec![],
-        };
+        let mut chain = FilterChain { filters: vec![] };
 
         for filter in &config.filters {
             match filter {
@@ -90,13 +91,10 @@ impl FilterChain {
     pub fn add(&mut self, filter: impl Filter + Send + Sync + 'static) {
         self.filters.push(Box::new(filter));
     }
+}
 
-    pub async fn apply(&self, req: Request<Body>) -> Result<Response<Body>> {
-        let ctx = Context {
-            client: self.client.clone(),
-            target: self.target.clone(),
-            rest: self.filters.as_slice(),
-        };
-        ctx.next(req).await
+impl AsRef<[Box<DynFilter>]> for FilterChain {
+    fn as_ref(&self) -> &[Box<DynFilter>] {
+        self.filters.as_slice()
     }
 }

@@ -1,5 +1,5 @@
 use crate::config::FormLoginConf;
-use crate::filters::{Filter, Context};
+use crate::filters::{Context, Filter};
 use crate::session::{establish_session, Claims};
 use crate::userbase::{get_user_base, DynUserBase, LookupResult};
 use anyhow::Result;
@@ -48,11 +48,7 @@ impl FormLoginFilter {
 #[async_trait::async_trait]
 impl Filter for FormLoginFilter {
     #[tracing::instrument(skip(self, req, ctx))]
-    async fn apply(
-        &self,
-        mut req: Request<Body>,
-        ctx: Context<'_>,
-    ) -> Result<Response<Body>> {
+    async fn apply(&self, mut req: Request<Body>, ctx: Context<'_>) -> Result<Response<Body>> {
         if req.uri().path() == self.path {
             if req.method() == Method::POST {
                 trace!("post to login path");
