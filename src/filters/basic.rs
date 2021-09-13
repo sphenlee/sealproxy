@@ -1,6 +1,6 @@
 use crate::config::BasicFilterConf;
 use crate::filters::{Context, Filter};
-use crate::session::{establish_session, Claims};
+use crate::session::Claims;
 use crate::target::add_header_claims;
 use crate::userbase::{get_user_base, DynUserBase, LookupResult};
 use anyhow::Result;
@@ -92,7 +92,7 @@ impl Filter for BasicFilter {
                     add_header_claims(&mut req, claims.clone())?;
 
                     let resp = ctx.finish(req).await?;
-                    establish_session(resp, claims)
+                    ctx.establish_session(resp, claims)
                 }
                 LookupResult::Other(msg) => {
                     debug!("something went wrong checking userbase: {}", msg);

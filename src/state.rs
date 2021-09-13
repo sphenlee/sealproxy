@@ -1,24 +1,26 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use arc_swap::ArcSwapOption;
 use futures_util::stream::StreamExt;
-use hyper::{Body, Request, Response};
 use hyper::client::{Client, HttpConnector};
+use hyper::{Body, Request, Response};
 use inotify::{EventOwned, WatchMask};
 use once_cell::sync::Lazy;
-use tracing::{trace, warn};
+use tracing::{info, trace, warn};
 
 use crate::config;
 use crate::config::Config;
 use crate::filters::{Context, FilterChain};
+use jsonwebtoken::EncodingKey;
 
 pub static STATE: Lazy<ArcSwapOption<State>> = Lazy::new(ArcSwapOption::empty);
 
 pub struct State {
     pub config: Config,
-    client: Client<HttpConnector>,
+    pub client: Client<HttpConnector>,
+    pub session_key: EncodingKey,
     pub filters: FilterChain,
 }
 
@@ -26,15 +28,20 @@ impl State {
     pub fn from_config(config: Config) -> Result<State> {
         let filters = FilterChain::from_config(&config)?;
 
+        let pem = std::fs::read(&config.session.private_key)
+            .context("error loading session private key")?;
+        let session_key = EncodingKey::from_rsa_pem(pem.as_ref())?;
+
         Ok(State {
             config,
             client: Client::new(),
+            session_key,
             filters,
         })
     }
 
     pub async fn handle(&self, req: Request<Body>) -> Result<Response<Body>> {
-        let ctx = Context::new(&self.config, &self.filters, self.client.clone());
+        let ctx = Context::new(&self);
         ctx.next(req).await
     }
 }
@@ -58,7 +65,9 @@ fn start_file_watch(config_file: &Path) -> Result<()> {
     trace!(?dir, "inotify watch directory");
 
     let mut watch = inotify::Inotify::init()?;
-    watch.add_watch(&dir, WatchMask::CLOSE_WRITE | WatchMask::MOVED_TO)?;
+    watch
+        .add_watch(&dir, WatchMask::CLOSE_WRITE | WatchMask::MOVED_TO)
+        .context("error adding inotify watch on directory")?;
 
     tokio::task::spawn(async move {
         let mut buf = [0; 1024];
@@ -70,7 +79,13 @@ fn start_file_watch(config_file: &Path) -> Result<()> {
                     name: Some(name), ..
                 }) if name == os_config_file => {
                     warn!("reloading configuration");
-                    reload_config(&os_config_file)?;
+                    match reload_config(&os_config_file) {
+                        Ok(_) => info!("new config loaded successfully"),
+                        Err(err) => warn!(
+                            "new config is not valid, old config has been retained: {}",
+                            err
+                        ),
+                    };
                 }
                 Ok(_) => {}
                 Err(err) => warn!("inotify error: {:?}", err),

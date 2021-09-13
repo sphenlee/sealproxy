@@ -29,7 +29,7 @@ struct SemiCompactVisitor {
 impl Visit for SemiCompactVisitor {
     fn record_debug(&mut self, field: &Field, value: &dyn Debug) {
         match field.name() {
-            "message" => self.message = format!("{:?}\n", value),
+            "message" => self.message = format!("    {:?}\n", value),
             name if name.starts_with("log.") => (),
             name => {
                 self.fields

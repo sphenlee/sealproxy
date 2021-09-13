@@ -90,9 +90,15 @@ pub enum FilterConf {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct Session {
+    pub private_key: String,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct Config {
     pub server: Server,
     pub target: Target,
+    pub session: Session,
     pub filters: Vec<FilterConf>,
 }
 

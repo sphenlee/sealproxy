@@ -1,10 +1,10 @@
+use crate::config::Target;
 use crate::session::Claims;
 use anyhow::Result;
 use hyper::{client::HttpConnector, Client};
 use hyper::{Body, Request, Response};
 use std::convert::TryInto;
 use tracing::info;
-use crate::config::Target;
 
 pub fn add_header_claims(req: &mut Request<Body>, claims: Claims) -> Result<()> {
     let headers = req.headers_mut();
@@ -17,7 +17,7 @@ pub fn add_header_claims(req: &mut Request<Body>, claims: Claims) -> Result<()> 
 #[tracing::instrument(skip(req, client, target))]
 pub async fn route(
     req: Request<Body>,
-    client: Client<HttpConnector>,
+    client: &Client<HttpConnector>,
     target: &Target,
 ) -> Result<Response<Body>> {
     let path = req.uri().path();

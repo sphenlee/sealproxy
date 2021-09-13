@@ -15,21 +15,23 @@ use crate::filters::anonymous::AnonymousFilter;
 use crate::filters::cookie_session::CookieSessionFilter;
 use crate::filters::form_login::FormLoginFilter;
 use crate::filters::redirect::RedirectFilter;
+use crate::session::Claims;
+use crate::state::State;
 
 type DynFilter = dyn Filter + Send + Sync + 'static;
 
 pub struct Context<'a> {
-    config: &'a Config,
     client: Client<HttpConnector>,
+    state: &'a State,
     rest: &'a [Box<DynFilter>],
 }
 
 impl<'a> Context<'a> {
-    pub fn new(config: &'a Config, filters: &'a FilterChain, client: Client<HttpConnector>) -> Self {
+    pub fn new(state: &'a State) -> Self {
         Context {
-            config,
-            client,
-            rest: filters.as_ref(),
+            state,
+            client: state.client.clone(),
+            rest: state.filters.as_ref(),
         }
     }
 
@@ -37,8 +39,8 @@ impl<'a> Context<'a> {
         match self.rest.split_first() {
             Some((head, rest)) => {
                 let ctx = Context {
+                    state: self.state,
                     client: self.client,
-                    config: self.config,
                     rest,
                 };
                 head.apply(req, ctx).await
@@ -49,8 +51,16 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub async fn finish(self, req: Request<Body>) -> Result<Response<Body>> {
-        crate::target::route(req, self.client, &self.config.target).await
+    pub async fn finish(&self, req: Request<Body>) -> Result<Response<Body>> {
+        crate::target::route(req, &self.client, &self.state.config.target).await
+    }
+
+    pub fn establish_session(
+        &self,
+        resp: Response<Body>,
+        claims: Claims,
+    ) -> Result<Response<Body>> {
+        crate::session::establish_session(resp, claims, &self.state)
     }
 }
 

@@ -1,8 +1,9 @@
+use crate::state::State;
 use anyhow::Result;
 use cookie::{Cookie, SameSite};
 use hyper::header::{self, HeaderValue};
 use hyper::{Body, Response};
-use jsonwebtoken::{Algorithm, EncodingKey, Header};
+use jsonwebtoken::{Algorithm, Header};
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
 
@@ -24,11 +25,11 @@ pub struct JwtClaims {
     pub exp: i64,
 }
 
-pub fn establish_session(mut resp: Response<Body>, claims: Claims) -> Result<Response<Body>> {
-    // TODO - store this in config and load the key only at startup
-    let pem = std::fs::read("private.pem")?;
-    let encoding_key = EncodingKey::from_rsa_pem(pem.as_ref())?;
-
+pub fn establish_session(
+    mut resp: Response<Body>,
+    claims: Claims,
+    state: &State,
+) -> Result<Response<Body>> {
     let jwt_claims = JwtClaims {
         aud: AUDIENCE.to_owned(),
         iss: claims.issuer,
@@ -37,7 +38,7 @@ pub fn establish_session(mut resp: Response<Body>, claims: Claims) -> Result<Res
     };
 
     let header = Header::new(Algorithm::RS256);
-    let jwt = jsonwebtoken::encode(&header, &jwt_claims, &encoding_key)?;
+    let jwt = jsonwebtoken::encode(&header, &jwt_claims, &state.session_key)?;
 
     let cookie = Cookie::build(SESSION_COOKIE, jwt)
         .secure(false) // TODO - unsecure until HTTPS is enabled by default

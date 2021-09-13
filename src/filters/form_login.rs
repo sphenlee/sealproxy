@@ -1,6 +1,6 @@
 use crate::config::FormLoginConf;
 use crate::filters::{Context, Filter};
-use crate::session::{establish_session, Claims};
+use crate::session::Claims;
 use crate::userbase::{get_user_base, DynUserBase, LookupResult};
 use anyhow::Result;
 use hyper::header;
@@ -73,7 +73,7 @@ impl Filter for FormLoginFilter {
                             .header(header::LOCATION, &self.success_redirect)
                             .body(Body::empty())?;
 
-                        establish_session(resp, claims)
+                        ctx.establish_session(resp, claims)
                     }
                     LookupResult::NoSuchUser => {
                         debug!("user not found");

@@ -15,7 +15,7 @@ filters:
       failure_redirect: /login
       user_base: &userbase
         user_pass:
-          users: &users
+          users:
             - ["alice", "123456"]
             - ["bob", "asdf"]
 
@@ -32,6 +32,9 @@ filters:
         - "/"
       not_paths:
         - "/api/**"
+
+session:
+  private_key: private.pem
 
 target:
   url: http://localhost:8080/

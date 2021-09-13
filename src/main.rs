@@ -2,10 +2,10 @@ use std::convert::Infallible;
 
 use anyhow::Result;
 use futures_util::StreamExt;
-use hyper::{Body, Request, Response, StatusCode};
 use hyper::server::accept;
 use hyper::server::conn::AddrIncoming;
 use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Response, StatusCode};
 use tracing::{info, warn};
 use uuid::Uuid;
 
@@ -13,6 +13,7 @@ use crate::state::STATE;
 use crate::tls::get_server_tls_config;
 
 mod config;
+pub mod filters;
 mod logging;
 pub mod path_match;
 pub mod session;
@@ -20,7 +21,6 @@ mod state;
 pub mod target;
 mod tls;
 pub mod userbase;
-pub mod filters;
 
 #[tracing::instrument(
     skip(req),
@@ -53,8 +53,7 @@ async fn main() -> Result<()> {
             clap::Arg::with_name("config")
                 .long("--config")
                 .short("-c")
-                .takes_value(true)
-                .required(true),
+                .default_value("/etc/sealproxy/config.yml"),
         );
 
     let args = app.get_matches();
