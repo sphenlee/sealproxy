@@ -8,21 +8,18 @@ filters:
   - anonymous:
       paths:
         - "/static/**"
-        - "/heathcheck"
-        - "/int-api/**"
 
   - form_login:
       path: /login
       success_redirect: /
       failure_redirect: /login
-      user_base: &userbase
-        user_pass:
+      user_base:
+        user_pass: &userbase
           users:
-            - ["alice", "123456"]
-            - ["bob", "asdf"]
+            - ["admin", "password"]
+            - ["user", "asdfasdf"]
 
   - cookie_session:
-      public_key_file: public.pem
 
   - basic:
       user_base: *userbase
@@ -31,7 +28,8 @@ filters:
       location: /login
 
 session:
-  private_key: private.pem
+  private_key_file: private.pem
+  public_key_file: public.pem
 
 target:
   url: http://localhost:8080/

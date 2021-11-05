@@ -13,7 +13,7 @@ use tracing::{info, trace, warn};
 use crate::config;
 use crate::config::Config;
 use crate::filters::{Context, FilterChain};
-use jsonwebtoken::EncodingKey;
+use jsonwebtoken::{EncodingKey, DecodingKey};
 
 pub static STATE: Lazy<ArcSwapOption<State>> = Lazy::new(ArcSwapOption::empty);
 
@@ -21,6 +21,7 @@ pub struct State {
     pub config: Config,
     pub client: Client<HttpConnector>,
     pub session_key: EncodingKey,
+    pub session_pub_key: DecodingKey<'static>,
     pub filters: FilterChain,
 }
 
@@ -28,14 +29,19 @@ impl State {
     pub fn from_config(config: Config) -> Result<State> {
         let filters = FilterChain::from_config(&config)?;
 
-        let pem = std::fs::read(&config.session.private_key)
+        let pem = std::fs::read(&config.session.private_key_file)
             .context("error loading session private key")?;
         let session_key = EncodingKey::from_rsa_pem(pem.as_ref())?;
+
+        let pem = std::fs::read(&config.session.public_key_file)
+            .context("error reading session public key file")?;
+        let session_pub_key = DecodingKey::from_rsa_pem(pem.as_ref())?.into_static();
 
         Ok(State {
             config,
             client: Client::new(),
             session_key,
+            session_pub_key,
             filters,
         })
     }

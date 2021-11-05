@@ -64,7 +64,6 @@ pub struct RedirectFilterConf {
 
 #[derive(Deserialize, Debug)]
 pub struct CookieSessionFilterConf {
-    pub public_key_file: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -92,7 +91,8 @@ pub enum FilterConf {
 
 #[derive(Deserialize, Debug)]
 pub struct Session {
-    pub private_key: String,
+    pub private_key_file: String,
+    pub public_key_file: String,
 }
 
 #[derive(Deserialize, Debug)]
