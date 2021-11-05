@@ -2,7 +2,7 @@ use crate::config::CookieSessionFilterConf;
 use crate::filters::{Context, Filter};
 use crate::session::{Claims, JwtClaims, AUDIENCE, SESSION_COOKIE};
 use crate::target::add_header_claims;
-use anyhow::Result;
+use anyhow::{Result, Context as _};
 use cookie::Cookie;
 use hyper::header;
 use hyper::{Body, Request, Response};
@@ -15,7 +15,8 @@ pub struct CookieSessionFilter {
 
 impl CookieSessionFilter {
     pub fn new(config: &CookieSessionFilterConf) -> Result<Self> {
-        let pem = std::fs::read(&config.public_key_file)?;
+        let pem = std::fs::read(&config.public_key_file)
+            .context(format!("error reading session public key file: {}", config.public_key_file))?;
         Ok(Self {
             decoding_key: DecodingKey::from_rsa_pem(pem.as_ref())?.into_static(),
         })

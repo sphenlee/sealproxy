@@ -9,4 +9,3 @@ WORKDIR /root
 
 COPY target/release/sealproxy /usr/bin/
 
-CMD ["-c", "/etc/sealproxy/config.yml"]

@@ -16,6 +16,13 @@ impl RedirectFilter {
             matcher: PathMatch::new(&config.paths, &config.not_paths)?,
         })
     }
+
+    fn redirect(&self) -> Result<Response<Body>> {
+        Ok(Response::builder()
+            .status(StatusCode::SEE_OTHER)
+            .header(header::LOCATION, &self.location)
+            .body(Body::empty())?)
+    }
 }
 
 #[async_trait::async_trait]
@@ -25,12 +32,16 @@ impl Filter for RedirectFilter {
         let path = req.uri().path();
 
         if self.matcher.matches(path)? {
-            Ok(Response::builder()
-                .status(StatusCode::SEE_OTHER)
-                .header(header::LOCATION, &self.location)
-                .body(Body::empty())?)
-        } else {
-            ctx.next(req).await
+            return self.redirect();
         }
+
+        if let Some(enc) = req.headers().get(header::ACCEPT_ENCODING) {
+            let mime: mime::Mime = enc.to_str()?.parse()?;
+            if mime.type_() == mime::TEXT {
+                return self.redirect();
+            }
+        }
+
+        ctx.next(req).await
     }
 }

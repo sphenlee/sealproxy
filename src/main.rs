@@ -21,6 +21,7 @@ mod state;
 pub mod target;
 mod tls;
 pub mod userbase;
+mod upgrade;
 
 #[tracing::instrument(
     skip(req),
@@ -53,7 +54,7 @@ async fn main() -> Result<()> {
             clap::Arg::with_name("config")
                 .long("--config")
                 .short("-c")
-                .default_value("/etc/sealproxy/config.yml"),
+                .default_value("/etc/sealproxy/sealproxy.yml"),
         );
 
     let args = app.get_matches();

@@ -1,10 +1,11 @@
 use crate::config::Target;
 use crate::session::Claims;
 use anyhow::Result;
-use hyper::{client::HttpConnector, Client};
-use hyper::{Body, Request, Response};
+use hyper::{client::HttpConnector, Client, Uri};
+use hyper::{Body, Request, Response, header};
 use std::convert::TryInto;
-use tracing::info;
+use tracing::{info, trace};
+use crate::upgrade::upgrade;
 
 pub fn add_header_claims(req: &mut Request<Body>, claims: Claims) -> Result<()> {
     let headers = req.headers_mut();
@@ -16,7 +17,7 @@ pub fn add_header_claims(req: &mut Request<Body>, claims: Claims) -> Result<()> 
 
 #[tracing::instrument(skip(req, client, target))]
 pub async fn route(
-    req: Request<Body>,
+    mut req: Request<Body>,
     client: &Client<HttpConnector>,
     target: &Target,
 ) -> Result<Response<Body>> {
@@ -25,19 +26,18 @@ pub async fn route(
 
     let mut url = target.url.join(&path[1..])?;
     url.set_query(req.uri().path_and_query().and_then(|pnq| pnq.query()));
+    let uri: Uri = url.as_str().parse()?;
 
     info!(target=%url, "request");
 
-    let (mut parts, body) = req.into_parts();
-    parts.uri = url.as_str().parse()?;
-    let proxy_req = Request::from_parts(parts, body);
-    let resp = client.request(proxy_req).await?;
+    if req.headers().contains_key(header::UPGRADE) {
+        trace!("client requested upgrade");
+        upgrade(req, uri, client).await
+    } else {
+        *req.uri_mut() = uri;
+        let resp = client.request(req).await?;
 
-    info!(status=?resp.status(), "reply");
-    return Ok(resp);
-
-    /*warn!("no target matched");
-    let mut resp = Response::new(Body::empty());
-    *resp.status_mut() = StatusCode::BAD_GATEWAY;
-    Ok(resp)*/
+        info!(status=?resp.status(), "reply");
+        Ok(resp)
+    }
 }

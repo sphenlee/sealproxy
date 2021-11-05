@@ -102,6 +102,7 @@ impl Filter for BasicFilter {
         }
 
         trace!("conditions not met, not using Basic authorization");
-        unauthorized()
+        //unauthorized()
+        ctx.next(req).await
     }
 }

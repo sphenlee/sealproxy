@@ -56,6 +56,7 @@ pub struct AnonymousFilterConf {
 #[derive(Deserialize, Debug)]
 pub struct RedirectFilterConf {
     pub location: String,
+    #[serde(default)]
     pub paths: Vec<String>,
     #[serde(default)]
     pub not_paths: Vec<String>,

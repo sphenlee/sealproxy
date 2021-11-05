@@ -24,3 +24,8 @@ Usage
 -----
 
 See `config.yml` for a sample configuration.
+
+Before using Seal Proxy you will need to create some cryptographic keys and 
+certificates. Generate these using the commands in the `Justfile`:
+
+    just gen-keypair gen-tlscert

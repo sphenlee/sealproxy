@@ -47,7 +47,8 @@ impl State {
 }
 
 pub fn init(config_file: impl AsRef<Path>) -> Result<Arc<State>> {
-    let config_file = config_file.as_ref().canonicalize()?;
+    let config_file = config_file.as_ref().canonicalize()
+        .context("config file path cannot be resolved")?;
     trace!(?config_file, "config file");
 
     start_file_watch(&config_file)?;
