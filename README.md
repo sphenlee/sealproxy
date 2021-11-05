@@ -1,4 +1,4 @@
-![SealProxy](/home/slee/src/authnproxy/sealproxy.png "Seal Proxy")
+![SealProxy](./sealproxy.png "Seal Proxy")
 
 SealProxy is an authenticating proxy intended to be deployed as a sidecar.
 It sits in front of your application and ensure requests are autheticated 
