@@ -53,9 +53,15 @@ pub struct AnonymousFilterConf {
     pub not_paths: Vec<String>,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Deserialize, Debug)]
 pub struct RedirectFilterConf {
     pub location: String,
+    #[serde(default="default_true")]
+    pub with_return: bool,
     #[serde(default)]
     pub paths: Vec<String>,
     #[serde(default)]
@@ -63,8 +69,7 @@ pub struct RedirectFilterConf {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct CookieSessionFilterConf {
-}
+pub struct CookieSessionFilterConf;
 
 #[derive(Deserialize, Debug)]
 pub struct BasicFilterConf {
@@ -74,7 +79,7 @@ pub struct BasicFilterConf {
 #[derive(Deserialize, Debug)]
 pub struct FormLoginConf {
     pub path: String,
-    pub success_redirect: String,
+    pub success_redirect: Option<String>,
     pub failure_redirect: Option<String>,
     pub user_base: UserBaseConf,
 }

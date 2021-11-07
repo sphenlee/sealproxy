@@ -16,22 +16,9 @@ struct Form {
 
 pub struct FormLoginFilter {
     path: String,
-    success_redirect: String,
+    success_redirect: Option<String>,
     failure_redirect: Option<String>,
     user_base: Box<DynUserBase>,
-}
-
-fn redirect_or_reject(redirect: Option<&str>) -> Result<Response<Body>> {
-    if let Some(target) = redirect {
-        Ok(Response::builder()
-            .status(StatusCode::SEE_OTHER)
-            .header(header::LOCATION, target)
-            .body(Body::empty())?)
-    } else {
-        Ok(Response::builder()
-            .status(StatusCode::UNAUTHORIZED)
-            .body(Body::empty())?)
-    }
 }
 
 impl FormLoginFilter {
@@ -43,56 +30,82 @@ impl FormLoginFilter {
             user_base: get_user_base(&config.user_base)?,
         })
     }
+
+    fn redirect_or_reject(&self) -> Result<Response<Body>> {
+        if let Some(target) = &self.failure_redirect {
+            Ok(Response::builder()
+                .status(StatusCode::SEE_OTHER)
+                .header(header::LOCATION, target)
+                .body(Body::empty())?)
+        } else {
+            Ok(Response::builder()
+                .status(StatusCode::UNAUTHORIZED)
+                .body(Body::empty())?)
+        }
+    }
 }
 
 #[async_trait::async_trait]
 impl Filter for FormLoginFilter {
     #[tracing::instrument(skip(self, req, ctx))]
     async fn apply(&self, mut req: Request<Body>, ctx: Context<'_>) -> Result<Response<Body>> {
-        if req.uri().path() == self.path {
-            if req.method() == Method::POST {
-                trace!("post to login path");
-                let body = hyper::body::to_bytes(req.body_mut()).await?;
+        if req.uri().path() != self.path {
+            return ctx.next(req).await;
+        }
 
-                let form: Form = serde_urlencoded::from_bytes(body.as_ref())?;
+        if req.method() != Method::POST {
+            // login path, but not a post gets passed to the backend to serve up the login page
+            return ctx.finish(req).await;
+        }
 
-                match self
-                    .user_base
-                    .lookup(&form.username, &form.password)
-                    .await?
-                {
-                    LookupResult::Success => {
-                        info!("successful form login");
+        trace!("post to login path");
+        let body = hyper::body::to_bytes(req.body_mut()).await?;
 
-                        let claims = Claims {
-                            issuer: "seal/formlogin".to_owned(),
-                            subject: form.username.clone(),
-                        };
-                        let resp = Response::builder()
-                            .status(StatusCode::SEE_OTHER)
-                            .header(header::LOCATION, &self.success_redirect)
-                            .body(Body::empty())?;
+        let form: Form = serde_urlencoded::from_bytes(body.as_ref())?;
 
-                        ctx.establish_session(resp, claims)
-                    }
-                    LookupResult::NoSuchUser => {
-                        debug!("user not found");
-                        redirect_or_reject(self.failure_redirect.as_deref())
-                    }
-                    LookupResult::IncorrectPassword => {
-                        debug!("incorrect password");
-                        redirect_or_reject(self.failure_redirect.as_deref())
-                    }
-                    LookupResult::Other(msg) => {
-                        debug!("something went wrong checking user base: {}", msg);
-                        redirect_or_reject(self.failure_redirect.as_deref())
-                    }
-                }
-            } else {
-                ctx.finish(req).await
+        match self
+            .user_base
+            .lookup(&form.username, &form.password)
+            .await?
+        {
+            LookupResult::Success => {
+                info!("successful form login");
+
+                let claims = Claims {
+                    issuer: "seal/formlogin".to_owned(),
+                    subject: form.username.clone(),
+                };
+
+                let ret= req.uri().query().and_then(|q|
+                    url::form_urlencoded::parse(q.as_bytes())
+                        .into_iter()
+                        .find(|kv| kv.0 == "return")
+                        .map(|(_k, v)| v.into_owned())
+                );
+
+                let redirect = ret
+                    .or_else(|| self.success_redirect.clone())
+                    .unwrap_or_else(|| "/".to_owned());
+
+                let resp = Response::builder()
+                    .status(StatusCode::SEE_OTHER)
+                    .header(header::LOCATION, &redirect)
+                    .body(Body::empty())?;
+
+                ctx.establish_session(resp, claims)
             }
-        } else {
-            ctx.next(req).await
+            LookupResult::NoSuchUser => {
+                debug!("user not found");
+                self.redirect_or_reject()
+            }
+            LookupResult::IncorrectPassword => {
+                debug!("incorrect password");
+                self.redirect_or_reject()
+            }
+            LookupResult::Other(msg) => {
+                debug!("something went wrong checking user base: {}", msg);
+                self.redirect_or_reject()
+            }
         }
     }
 }
