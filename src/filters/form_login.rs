@@ -53,12 +53,21 @@ impl Filter for FormLoginFilter {
             return ctx.next(req).await;
         }
 
-        if req.method() != Method::POST {
-            // login path, but not a post gets passed to the backend to serve up the login page
-            return ctx.finish(req).await;
-        }
+        match req.method() {
+            &Method::POST => {
+                trace!("post to login path");
+            }
+            &Method::GET => {
+                // GET is passed to the backend to serve up the login page
+                return ctx.finish(req).await;
+            }
+            _ => {
+                return Ok(Response::builder()
+                              .status(StatusCode::METHOD_NOT_ALLOWED)
+                              .body(Body::empty())?);
+            }
+        };
 
-        trace!("post to login path");
         let body = hyper::body::to_bytes(req.body_mut()).await?;
 
         let form: Form = serde_urlencoded::from_bytes(body.as_ref())?;
