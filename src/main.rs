@@ -60,7 +60,7 @@ async fn main() -> Result<()> {
     let args = app.get_matches();
 
     let config_arg = args.value_of("config").expect("config is mandatory");
-    let state = state::init(config_arg)?;
+    let state = state::init(config_arg).await?;
 
     let bind = state
         .config

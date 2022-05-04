@@ -24,8 +24,9 @@ pub struct Server {
 
 #[derive(Deserialize, Debug)]
 pub struct LdapConf {
-    pub addr: Url,
-    pub bind_dn: String,
+    pub url: Url,
+    pub base_dn: String,
+    pub user_attr: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]

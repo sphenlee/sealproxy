@@ -1,8 +1,10 @@
 mod userpass;
+mod ldap;
 
 use crate::config::UserBaseConf;
 use crate::userbase::userpass::UserPass;
 use anyhow::Result;
+use crate::userbase::ldap::Ldap;
 
 #[derive(Debug)]
 pub enum LookupResult {
@@ -19,9 +21,9 @@ pub trait UserBase {
     async fn lookup(&self, user: &str, password: &str) -> Result<LookupResult>;
 }
 
-pub fn get_user_base(conf: &UserBaseConf) -> Result<Box<DynUserBase>> {
-    match conf {
-        UserBaseConf::Ldap(_) => todo!(),
-        UserBaseConf::UserPass(conf) => Ok(Box::new(UserPass::new(conf))),
-    }
+pub async fn get_user_base(conf: &UserBaseConf) -> Result<Box<DynUserBase>> {
+    Ok(match conf {
+        UserBaseConf::Ldap(conf) => Ldap::new(conf).await?,
+        UserBaseConf::UserPass(conf) => Box::new(UserPass::new(conf)),
+    })
 }

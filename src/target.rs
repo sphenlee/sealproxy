@@ -1,10 +1,10 @@
 use crate::config::Target;
 use crate::session::Claims;
 use anyhow::Result;
-use hyper::{client::HttpConnector, Client, Uri};
+use hyper::{client::HttpConnector, Client, Uri, StatusCode};
 use hyper::{Body, Request, Response, header};
 use std::convert::TryInto;
-use tracing::{info, trace};
+use tracing::{error, info, trace};
 use crate::upgrade::upgrade;
 
 pub fn add_header_claims(req: &mut Request<Body>, claims: Claims) -> Result<()> {
@@ -35,7 +35,15 @@ pub async fn route(
         upgrade(req, uri, client).await
     } else {
         *req.uri_mut() = uri;
-        let resp = client.request(req).await?;
+        let resp = match client.request(req).await {
+            Ok(resp) => resp,
+            Err(err) => {
+                error!("gateway error: {}", err);
+                Response::builder()
+                    .status(StatusCode::BAD_GATEWAY)
+                    .body(hyper::Body::empty())?
+            }
+        };
 
         info!(status=?resp.status(), "reply");
         Ok(resp)

@@ -26,8 +26,8 @@ pub struct State {
 }
 
 impl State {
-    pub fn from_config(config: Config) -> Result<State> {
-        let filters = FilterChain::from_config(&config)?;
+    pub async fn from_config(config: Config) -> Result<State> {
+        let filters = FilterChain::from_config(&config).await?;
 
         let pem = std::fs::read(&config.session.private_key_file)
             .context("error loading session private key")?;
@@ -52,13 +52,13 @@ impl State {
     }
 }
 
-pub fn init(config_file: impl AsRef<Path>) -> Result<Arc<State>> {
+pub async fn init(config_file: impl AsRef<Path>) -> Result<Arc<State>> {
     let config_file = config_file.as_ref().canonicalize()
         .context("config file path cannot be resolved")?;
     trace!(?config_file, "config file");
 
     start_file_watch(&config_file)?;
-    reload_config(&config_file)
+    reload_config(&config_file).await
 }
 
 fn start_file_watch(config_file: &Path) -> Result<()> {
@@ -86,7 +86,7 @@ fn start_file_watch(config_file: &Path) -> Result<()> {
                     name: Some(name), ..
                 }) if name == os_config_file => {
                     warn!("reloading configuration");
-                    match reload_config(&os_config_file) {
+                    match reload_config(&os_config_file).await {
                         Ok(_) => info!("new config loaded successfully"),
                         Err(err) => warn!(
                             "new config is not valid, old config has been retained: {}",
@@ -109,10 +109,10 @@ fn start_file_watch(config_file: &Path) -> Result<()> {
     Ok(())
 }
 
-fn reload_config(file: impl AsRef<Path>) -> Result<Arc<State>> {
+async fn reload_config(file: impl AsRef<Path>) -> Result<Arc<State>> {
     let config = config::load(file.as_ref())?;
 
-    let state = Arc::new(State::from_config(config)?);
+    let state = Arc::new(State::from_config(config).await?);
     STATE.store(Some(state.clone()));
 
     Ok(state)

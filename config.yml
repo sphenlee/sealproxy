@@ -8,21 +8,28 @@ filters:
   - anonymous:
       paths:
         - "/static/**"
+        - "/int-api/**"
+        - "/healthcheck"
 
-  - form_login:
-      path: /login
-      success_redirect: /
-      failure_redirect: /login
-      user_base:
-        user_pass: &userbase
-          users:
-            - ["admin", "password"]
-            - ["user", "asdfasdf"]
+#  - form_login:
+#      path: /login
+#      user_base:
+#        ldap:
+#          url: "ldap://localhost:10389/"
+#          base_dn: "ou=people,dc=planetexpress,dc=com"
+
+#        user_pass:
+#          users:
+#            - ["admin", "password"]
+#            - ["user", "asdfasdf"]
 
   - cookie_session:
 
   - basic:
-      user_base: *userbase
+      user_base:
+        ldap:
+          url: "ldap://localhost:10389/"
+          base_dn: "ou=people,dc=planetexpress,dc=com"
 
   - redirect:
       location: /login
