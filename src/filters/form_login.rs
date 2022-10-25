@@ -22,12 +22,12 @@ pub struct FormLoginFilter {
 }
 
 impl FormLoginFilter {
-    pub async fn new(config: &FormLoginConf) -> Result<Self> {
+    pub fn new(config: &FormLoginConf) -> Result<Self> {
         Ok(Self {
             path: config.path.clone(),
             success_redirect: config.success_redirect.clone(),
             failure_redirect: config.failure_redirect.clone(),
-            user_base: get_user_base(&config.user_base).await?,
+            user_base: get_user_base(&config.user_base)?,
         })
     }
 

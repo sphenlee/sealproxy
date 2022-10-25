@@ -21,9 +21,9 @@ pub trait UserBase {
     async fn lookup(&self, user: &str, password: &str) -> Result<LookupResult>;
 }
 
-pub async fn get_user_base(conf: &UserBaseConf) -> Result<Box<DynUserBase>> {
+pub fn get_user_base(conf: &UserBaseConf) -> Result<Box<DynUserBase>> {
     Ok(match conf {
-        UserBaseConf::Ldap(conf) => Ldap::new(conf).await?,
+        UserBaseConf::Ldap(conf) => Ldap::new(conf)?,
         UserBaseConf::UserPass(conf) => Box::new(UserPass::new(conf)),
     })
 }

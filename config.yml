@@ -7,29 +7,19 @@ server:
 filters:
   - anonymous:
       paths:
-        - "/static/**"
-        - "/int-api/**"
-        - "/healthcheck"
+        - "/anon/**"
 
-#  - form_login:
-#      path: /login
-#      user_base:
-#        ldap:
-#          url: "ldap://localhost:10389/"
-#          base_dn: "ou=people,dc=planetexpress,dc=com"
-
-#        user_pass:
-#          users:
-#            - ["admin", "password"]
-#            - ["user", "asdfasdf"]
+  - form_login:
+      path: /login
+      user_base: &ldap_settings
+        ldap:
+          url: "ldap://localhost:10389/"
+          base_dn: "ou=people,dc=planetexpress,dc=com"
 
   - cookie_session:
 
   - basic:
-      user_base:
-        ldap:
-          url: "ldap://localhost:10389/"
-          base_dn: "ou=people,dc=planetexpress,dc=com"
+      user_base: *ldap_settings
 
   - redirect:
       location: /login

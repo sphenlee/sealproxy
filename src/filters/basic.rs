@@ -13,9 +13,9 @@ pub struct BasicFilter {
 }
 
 impl BasicFilter {
-    pub async fn new(config: &BasicFilterConf) -> Result<BasicFilter> {
+    pub fn new(config: &BasicFilterConf) -> Result<BasicFilter> {
         Ok(BasicFilter {
-            user_base: get_user_base(&config.user_base).await?,
+            user_base: get_user_base(&config.user_base)?,
         })
     }
 }

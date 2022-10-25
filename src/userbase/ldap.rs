@@ -2,22 +2,18 @@ use anyhow::Result;
 use crate::config::LdapConf;
 use crate::userbase::{DynUserBase, LookupResult, UserBase};
 use ldap3::SearchEntry;
-use tokio::sync::Mutex;
+use url::Url;
 
 pub struct Ldap {
-    ldap: Mutex<ldap3::Ldap>,
+    url: Url,
     user_attr: String,
     base_dn: String,
 }
 
 impl Ldap {
-    pub async fn new(config: &LdapConf) -> Result<Box<DynUserBase>> {
-        let (conn, ldap) = ldap3::LdapConnAsync::from_url(&config.url).await?;
-
-        ldap3::drive!(conn); // TODO - handle this better!
-
+    pub fn new(config: &LdapConf) -> Result<Box<DynUserBase>> {
         Ok(Box::new(Ldap {
-            ldap: Mutex::new(ldap),
+            url: config.url.clone(),
             user_attr: config.user_attr.clone().unwrap_or("uid".into()),
             base_dn: config.base_dn.clone(),
         }))
@@ -28,9 +24,11 @@ impl Ldap {
 impl UserBase for Ldap {
     #[tracing::instrument(skip(self, user, password))]
     async fn lookup(&self, user: &str, password: &str) -> anyhow::Result<LookupResult> {
-        let query = format!("{}={}", self.user_attr, user);
+        let (conn, mut ldap) = ldap3::LdapConnAsync::from_url(&self.url).await?;
 
-        let mut ldap = self.ldap.lock().await;
+        ldap3::drive!(conn);
+
+        let query = format!("{}={}", self.user_attr, user);
 
         let (data, _) = ldap.search(&self.base_dn,
                                  ldap3::Scope::OneLevel, &query, &["*"]).await?
@@ -46,9 +44,13 @@ impl UserBase for Ldap {
             let parsed = SearchEntry::construct(result);
             let user_dn = parsed.dn;
 
-            ldap.simple_bind(&user_dn, password).await?.success()?;
+            let result = ldap.simple_bind(&user_dn, password).await?;
 
-            return Ok(LookupResult::Success)
+            return Ok(match result.rc {
+                0 => LookupResult::Success,
+                49 => LookupResult::IncorrectPassword,
+                _ => LookupResult::Other(format!("error from LDAP bind: {}", result))
+            });
         }
 
         unreachable!()

@@ -74,7 +74,7 @@ pub struct FilterChain {
 }
 
 impl FilterChain {
-    pub async fn from_config(config: &Config) -> Result<FilterChain> {
+    pub fn from_config(config: &Config) -> Result<FilterChain> {
         let mut chain = FilterChain { filters: vec![] };
 
         for filter in &config.filters {
@@ -83,13 +83,13 @@ impl FilterChain {
                     chain.add(AnonymousFilter::new(config)?);
                 }
                 FilterConf::Basic(config) => {
-                    chain.add(BasicFilter::new(config).await?);
+                    chain.add(BasicFilter::new(config)?);
                 }
                 FilterConf::CookieSession(config) => {
                     chain.add(CookieSessionFilter::new(config)?);
                 }
                 FilterConf::FormLogin(config) => {
-                    chain.add(FormLoginFilter::new(config).await?);
+                    chain.add(FormLoginFilter::new(config)?);
                 }
                 FilterConf::Redirect(config) => chain.add(RedirectFilter::new(config)?),
             }
