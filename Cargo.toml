@@ -24,7 +24,7 @@ jsonwebtoken = "8"
 time = "0.3"
 route-recognizer = "0.3.1"
 serde_urlencoded = "0.7.1"
-clap = "3"
+clap = "4"
 tls-listener = { version = "0.2.1", features = ["hyper-h1", "hyper-h2"] }
 rustls = "0.19.1"
 rustls-pemfile = "2.2.0"
