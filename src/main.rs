@@ -48,18 +48,21 @@ async fn main() -> Result<()> {
 
     logging::setup().expect("logging setup failed");
 
-    let app = clap::App::new("sealproxy")
+    let app = clap::Command::new("sealproxy")
         .author("Steve Lee <sphen.lee@gmail.com>")
         .arg(
-            clap::Arg::with_name("config")
-                .long("--config")
-                .short("-c")
+            clap::Arg::new("config")
+                .long("config")
+                .short('c')
                 .default_value("/etc/sealproxy/sealproxy.yml"),
         );
 
     let args = app.get_matches();
 
-    let config_arg = args.value_of("config").expect("config is mandatory");
+    let config_arg = args
+        .get_one::<String>("config")
+        .expect("config is mandatory")
+        .as_str();
     let state = state::init(config_arg)?;
 
     let bind = state

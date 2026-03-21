@@ -9,11 +9,11 @@ fn load_certs(filename: &str) -> Result<Vec<Certificate>> {
         File::open(filename).context(format!("error opening tls certificates: {}", filename))?;
 
     let mut reader = BufReader::new(certfile);
-    Ok(rustls_pemfile::certs(&mut reader)
-        .context("error loading tls certificates")?
-        .iter()
-        .map(|v| rustls::Certificate(v.clone()))
-        .collect())
+    let certs: Vec<_> = rustls_pemfile::certs(&mut reader)
+        .collect::<Result<_, _>>()
+        .context("error loading tls certificates")?;
+
+    Ok(certs.into_iter().map(|cert| Certificate(cert.to_vec())).collect())
 }
 
 fn load_private_key(filename: &str) -> Result<PrivateKey> {
@@ -26,8 +26,15 @@ fn load_private_key(filename: &str) -> Result<PrivateKey> {
         let item = rustls_pemfile::read_one(&mut reader).context("error parsing tls keyfile")?;
 
         match item {
-            Some(rustls_pemfile::Item::RSAKey(key)) => return Ok(PrivateKey(key)),
-            Some(rustls_pemfile::Item::PKCS8Key(key)) => return Ok(PrivateKey(key)),
+            Some(rustls_pemfile::Item::Pkcs1Key(key)) => {
+                return Ok(PrivateKey(key.secret_pkcs1_der().to_vec()))
+            }
+            Some(rustls_pemfile::Item::Pkcs8Key(key)) => {
+                return Ok(PrivateKey(key.secret_pkcs8_der().to_vec()))
+            }
+            Some(rustls_pemfile::Item::Sec1Key(key)) => {
+                return Ok(PrivateKey(key.secret_sec1_der().to_vec()))
+            }
             None => break,
             _ => {}
         }

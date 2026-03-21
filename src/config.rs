@@ -106,6 +106,7 @@ pub struct Config {
     pub server: Server,
     pub target: Target,
     pub session: Session,
+    #[serde(with="serde_yaml::with::singleton_map_recursive")]
     pub filters: Vec<FilterConf>,
 }
 

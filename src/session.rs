@@ -1,6 +1,7 @@
 use crate::state::State;
 use anyhow::Result;
 use cookie::{Cookie, SameSite};
+use cookie::time::Duration as CookieDuration;
 use hyper::header::{self, HeaderValue};
 use hyper::{Body, Response};
 use jsonwebtoken::{Algorithm, Header};
@@ -40,10 +41,10 @@ pub fn establish_session(
     let header = Header::new(Algorithm::RS256);
     let jwt = jsonwebtoken::encode(&header, &jwt_claims, &state.session_key)?;
 
-    let cookie = Cookie::build(SESSION_COOKIE, jwt)
+    let cookie = Cookie::build(Cookie::new(SESSION_COOKIE, jwt))
         .secure(false) // TODO - unsecure until HTTPS is enabled by default
         .same_site(SameSite::Strict)
-        .max_age(Duration::days(1))
+        .max_age(CookieDuration::days(1))
         .finish();
 
     let header = HeaderValue::from_str(cookie.to_string().as_ref())?;

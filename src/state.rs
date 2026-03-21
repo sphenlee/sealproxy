@@ -21,7 +21,7 @@ pub struct State {
     pub config: Config,
     pub client: Client<HttpConnector>,
     pub session_key: EncodingKey,
-    pub session_pub_key: DecodingKey<'static>,
+    pub session_pub_key: DecodingKey,
     pub filters: FilterChain,
 }
 
@@ -35,7 +35,7 @@ impl State {
 
         let pem = std::fs::read(&config.session.public_key_file)
             .context("error reading session public key file")?;
-        let session_pub_key = DecodingKey::from_rsa_pem(pem.as_ref())?.into_static();
+        let session_pub_key = DecodingKey::from_rsa_pem(pem.as_ref())?;
 
         Ok(State {
             config,
