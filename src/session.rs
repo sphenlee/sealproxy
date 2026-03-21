@@ -45,7 +45,7 @@ pub fn establish_session(
         .secure(false) // TODO - unsecure until HTTPS is enabled by default
         .same_site(SameSite::Strict)
         .max_age(CookieDuration::days(1))
-        .finish();
+        .build();
 
     let header = HeaderValue::from_str(cookie.to_string().as_ref())?;
     resp.headers_mut().insert(header::SET_COOKIE, header);

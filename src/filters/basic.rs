@@ -4,6 +4,7 @@ use crate::session::Claims;
 use crate::target::add_header_claims;
 use crate::userbase::{get_user_base, DynUserBase, LookupResult};
 use anyhow::Result;
+use base64::Engine;
 use hyper::header;
 use hyper::{Body, Request, Response, StatusCode};
 use tracing::{debug, info, trace};
@@ -40,7 +41,9 @@ fn get_basic_auth(req: &Request<Body>) -> Result<Option<BasicAuth>> {
         if let Some(("Basic", userpass)) = authn.to_str()?.split_once(" ") {
             trace!("authorization is Basic");
 
-            let decoded = String::from_utf8(base64::decode(userpass)?)?;
+            let decoded = String::from_utf8(
+                base64::engine::general_purpose::STANDARD.decode(userpass)?
+            )?;
 
             if let Some((username, password)) = decoded.split_once(":") {
                 trace!("Basic authorization is well-formed");

@@ -71,14 +71,15 @@ fn start_file_watch(config_file: &Path) -> Result<()> {
     let dir = config_file.parent().expect("config path has no parent?");
     trace!(?dir, "inotify watch directory");
 
-    let mut watch = inotify::Inotify::init()?;
+    let watch = inotify::Inotify::init()?;
     watch
-        .add_watch(&dir, WatchMask::CLOSE_WRITE | WatchMask::MOVED_TO)
+        .watches()
+        .add(&dir, WatchMask::CLOSE_WRITE | WatchMask::MOVED_TO)
         .context("error adding inotify watch on directory")?;
 
     tokio::task::spawn(async move {
         let mut buf = [0; 1024];
-        let mut stream = watch.event_stream(&mut buf)?;
+        let mut stream = watch.into_event_stream(&mut buf)?;
 
         while let Some(item) = stream.next().await {
             match item {

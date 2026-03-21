@@ -1,17 +1,6 @@
 use anyhow::Result;
-use chrono::SecondsFormat;
-use colored::Colorize;
-use std::fmt::{Debug, Result as FmtResult, Write};
-use tracing::field::{Field, Visit};
-use tracing::{Event, Level, Subscriber};
-use tracing_log::NormalizeEvent;
-use tracing_subscriber::field::RecordFields;
-use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields, FormattedFields};
-use tracing_subscriber::{EnvFilter, prelude::*};
-use tracing_subscriber::registry::LookupSpan;
-use tracing_subscriber::{fmt};
-
-
+use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::prelude::*;
 
 pub fn setup() -> Result<()> {
     let use_json = false; // TODO
