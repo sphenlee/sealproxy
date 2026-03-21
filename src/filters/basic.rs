@@ -35,77 +35,74 @@ struct BasicAuth {
 
 fn get_basic_auth(req: &Request<Body>) -> Result<Option<BasicAuth>> {
     // TODO - fix this horrible if let cascade
-    return if let Some(authn) = req.headers().get(header::AUTHORIZATION) {
-        trace!("got Authorization header");
-
-        if let Some(("Basic", userpass)) = authn.to_str()?.split_once(" ") {
-            trace!("authorization is Basic");
-
-            let decoded = String::from_utf8(
-                base64::engine::general_purpose::STANDARD.decode(userpass)?
-            )?;
-
-            if let Some((username, password)) = decoded.split_once(":") {
-                trace!("Basic authorization is well-formed");
-
-                Ok(Some(BasicAuth {
-                    username: username.to_owned(),
-                    password: password.to_owned(),
-                }))
-            } else {
-                trace!("Basic authorization is not well-formed");
-                Ok(None)
-            }
-        } else {
-            trace!("Authorization is not Basic");
-            Ok(None)
-        }
-    } else {
+    let Some(authn) = req.headers().get(header::AUTHORIZATION) else {
         trace!("Authorization header not present");
-        Ok(None)
+        return Ok(None);
     };
+
+    trace!("got Authorization header");
+
+    let Some(("Basic", userpass)) = authn.to_str()?.split_once(" ") else {
+        trace!("Authorization is not Basic");
+        return Ok(None);
+    };
+
+    trace!("authorization is Basic");
+
+    let decoded = String::from_utf8(base64::engine::general_purpose::STANDARD.decode(userpass)?)?;
+
+    let Some((username, password)) = decoded.split_once(":") else {
+        trace!("Basic authorization is not well-formed");
+        return Ok(None);
+    };
+
+    trace!("Basic authorization is well-formed");
+
+    Ok(Some(BasicAuth {
+        username: username.to_owned(),
+        password: password.to_owned(),
+    }))
 }
 
 #[async_trait::async_trait]
 impl Filter for BasicFilter {
     #[tracing::instrument(skip(self, req, ctx))]
     async fn apply(&self, mut req: Request<Body>, ctx: Context<'_>) -> Result<Response<Body>> {
-        if let Some(basic_auth) = get_basic_auth(&req)? {
-            return match self
-                .user_base
-                .lookup(&basic_auth.username, &basic_auth.password)
-                .await?
-            {
-                LookupResult::NoSuchUser => {
-                    debug!("user not found");
-                    unauthorized()
-                }
-                LookupResult::IncorrectPassword => {
-                    debug!("incorrect password");
-                    unauthorized()
-                }
-                LookupResult::Success => {
-                    info!("successful basic auth login");
+        let Some(basic_auth) = get_basic_auth(&req)? else {
+            trace!("conditions not met, not using Basic authorization");
+            return ctx.next(req).await;
+        };
 
-                    let claims = Claims {
-                        issuer: "seal/basic".to_owned(),
-                        subject: basic_auth.username.clone(),
-                    };
+        match self
+            .user_base
+            .lookup(&basic_auth.username, &basic_auth.password)
+            .await?
+        {
+            LookupResult::NoSuchUser => {
+                debug!("user not found");
+                unauthorized()
+            }
+            LookupResult::IncorrectPassword => {
+                debug!("incorrect password");
+                unauthorized()
+            }
+            LookupResult::Success => {
+                info!("successful basic auth login");
 
-                    add_header_claims(&mut req, claims.clone())?;
+                let claims = Claims {
+                    issuer: "seal/basic".to_owned(),
+                    subject: basic_auth.username.clone(),
+                };
 
-                    let resp = ctx.finish(req).await?;
-                    ctx.establish_session(resp, claims)
-                }
-                LookupResult::Other(msg) => {
-                    debug!("something went wrong checking userbase: {}", msg);
-                    unauthorized()
-                }
-            };
+                add_header_claims(&mut req, claims.clone())?;
+
+                let resp = ctx.finish(req).await?;
+                ctx.establish_session(resp, claims)
+            }
+            LookupResult::Other(msg) => {
+                debug!("something went wrong checking userbase: {}", msg);
+                unauthorized()
+            }
         }
-
-        trace!("conditions not met, not using Basic authorization");
-        //unauthorized()
-        ctx.next(req).await
     }
 }
