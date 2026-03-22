@@ -1,9 +1,11 @@
 use crate::state::State;
 use anyhow::Result;
-use cookie::{Cookie, SameSite};
+use bytes::Bytes;
 use cookie::time::Duration as CookieDuration;
+use cookie::{Cookie, SameSite};
+use http_body_util::combinators::BoxBody;
 use hyper::header::{self, HeaderValue};
-use hyper::{Body, Response};
+use hyper::{Response};
 use jsonwebtoken::{Algorithm, Header};
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
@@ -27,10 +29,10 @@ pub struct JwtClaims {
 }
 
 pub fn establish_session(
-    mut resp: Response<Body>,
+    mut resp: Response<BoxBody<Bytes, hyper::Error>>,
     claims: Claims,
     state: &State,
-) -> Result<Response<Body>> {
+) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
     let jwt_claims = JwtClaims {
         aud: AUDIENCE.to_owned(),
         iss: claims.issuer,

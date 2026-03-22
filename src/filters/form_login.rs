@@ -1,10 +1,14 @@
 use crate::config::FormLoginConf;
-use crate::filters::{Context, Filter};
+use crate::filters::{empty_body, Context, Filter};
 use crate::session::Claims;
 use crate::userbase::{get_user_base, DynUserBase, LookupResult};
 use anyhow::Result;
+use bytes::{Buf, Bytes};
+use http_body_util::combinators::BoxBody;
+use http_body_util::BodyExt;
+use hyper::body::Incoming;
 use hyper::header;
-use hyper::{Body, Method, Request, Response, StatusCode};
+use hyper::{Method, Request, Response, StatusCode};
 use serde::Deserialize;
 use tracing::{debug, info, trace};
 
@@ -31,24 +35,30 @@ impl FormLoginFilter {
         })
     }
 
-    fn redirect_or_reject(&self) -> Result<Response<Body>> {
-        if let Some(target) = &self.failure_redirect {
-            Ok(Response::builder()
+    fn redirect_or_reject(&self) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
+        let response = if let Some(target) = &self.failure_redirect {
+            Response::builder()
                 .status(StatusCode::SEE_OTHER)
                 .header(header::LOCATION, target)
-                .body(Body::empty())?)
+                .body(empty_body())?
         } else {
-            Ok(Response::builder()
+            Response::builder()
                 .status(StatusCode::UNAUTHORIZED)
-                .body(Body::empty())?)
-        }
+                .body(empty_body())?
+        };
+
+        Ok(response)
     }
 }
 
 #[async_trait::async_trait]
 impl Filter for FormLoginFilter {
     #[tracing::instrument(skip(self, req, ctx))]
-    async fn apply(&self, mut req: Request<Body>, ctx: Context<'_>) -> Result<Response<Body>> {
+    async fn apply(
+        &self,
+        req: Request<Incoming>,
+        ctx: Context<'_>,
+    ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
         if req.uri().path() != self.path {
             return ctx.next(req).await;
         }
@@ -62,15 +72,18 @@ impl Filter for FormLoginFilter {
                 return ctx.finish(req).await;
             }
             _ => {
-                return Ok(Response::builder()
-                              .status(StatusCode::METHOD_NOT_ALLOWED)
-                              .body(Body::empty())?);
+                let body = Response::builder()
+                    .status(StatusCode::METHOD_NOT_ALLOWED)
+                    .body(empty_body())?;
+                return Ok(body);
             }
         };
 
-        let body = hyper::body::to_bytes(req.body_mut()).await?;
+        let query = req.uri().query().map(str::to_owned);
 
-        let form: Form = serde_urlencoded::from_bytes(body.as_ref())?;
+        let bytes = req.collect().await?.to_bytes();
+
+        let form: Form = serde_urlencoded::from_reader(bytes.reader())?;
 
         match self
             .user_base
@@ -85,12 +98,12 @@ impl Filter for FormLoginFilter {
                     subject: form.username.clone(),
                 };
 
-                let ret= req.uri().query().and_then(|q|
+                let ret = query.and_then(|q| {
                     url::form_urlencoded::parse(q.as_bytes())
                         .into_iter()
                         .find(|kv| kv.0 == "return")
                         .map(|(_k, v)| v.into_owned())
-                );
+                });
 
                 let redirect = ret
                     .or_else(|| self.success_redirect.clone())
@@ -99,7 +112,7 @@ impl Filter for FormLoginFilter {
                 let resp = Response::builder()
                     .status(StatusCode::SEE_OTHER)
                     .header(header::LOCATION, &redirect)
-                    .body(Body::empty())?;
+                    .body(empty_body())?;
 
                 ctx.establish_session(resp, claims)
             }

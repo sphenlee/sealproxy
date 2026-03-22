@@ -1,24 +1,26 @@
 use crate::config::CookieSessionFilterConf;
 use crate::filters::{Context, Filter};
 use crate::session::{Claims, JwtClaims, AUDIENCE, SESSION_COOKIE};
+use crate::state::State;
 use crate::target::add_header_claims;
 use anyhow::Result;
+use bytes::Bytes;
 use cookie::Cookie;
+use http_body_util::combinators::BoxBody;
+use hyper::body::Incoming;
 use hyper::header;
-use hyper::{Body, Request, Response};
+use hyper::{Request, Response};
 use jsonwebtoken::{Algorithm, Validation};
 use tracing::{debug, trace, warn};
-use crate::state::State;
 
-pub struct CookieSessionFilter {
-}
+pub struct CookieSessionFilter {}
 
 impl CookieSessionFilter {
     pub fn new(_config: &CookieSessionFilterConf) -> Result<Self> {
-        Ok(Self { })
+        Ok(Self {})
     }
 
-    fn get_cookie(&self, req: &Request<Body>, state: &State) -> Result<Option<JwtClaims>> {
+    fn get_cookie(&self, req: &Request<Incoming>, state: &State) -> Result<Option<JwtClaims>> {
         for val in req.headers().get_all(header::COOKIE) {
             let c = Cookie::parse(val.to_str()?)?;
             trace!(name = c.name(), "got cookie");
@@ -47,7 +49,11 @@ impl CookieSessionFilter {
 #[async_trait::async_trait]
 impl Filter for CookieSessionFilter {
     #[tracing::instrument(skip(self, req, ctx))]
-    async fn apply(&self, mut req: Request<Body>, ctx: Context<'_>) -> Result<Response<Body>> {
+    async fn apply(
+        &self,
+        mut req: Request<Incoming>,
+        ctx: Context<'_>,
+    ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
         if let Some(claims) = self.get_cookie(&req, &ctx.state)? {
             debug!("valid session cookie provided");
 

@@ -1,11 +1,18 @@
-FROM ubuntu:22.04
+FROM rust:1.67.0-bullseye AS build
 
-RUN apt-get update && apt-get install -y dumb-init
-RUN apt-get install -y openssl
+WORKDIR /usr/src/app
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/bin/sealproxy"]
+COPY . .
+RUN --mount=type=cache,target=/usr/local/rustup \
+    --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/src/app/target \
+    cargo build --release \
+    && mv /usr/src/app/target/release/sealproxy /usr/bin
 
-WORKDIR /root
 
-COPY target/release/sealproxy /usr/bin/
+FROM debian:bullseye-slim
 
+COPY --from=build /usr/bin/sealproxy /usr/bin
+
+ENTRYPOINT ["/usr/bin/sealproxy"]
+CMD ["--help"]

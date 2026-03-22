@@ -1,13 +1,20 @@
 use crate::config::Target;
+use crate::filters::empty_body;
 use crate::session::Claims;
+use crate::upgrade::upgrade;
 use anyhow::Result;
-use hyper::{client::HttpConnector, Client, Uri, StatusCode};
-use hyper::{Body, Request, Response, header};
+use bytes::Bytes;
+use http_body_util::BodyExt;
+use http_body_util::combinators::BoxBody;
+use hyper::body::Incoming;
+use hyper::{header, StatusCode, Uri};
+use hyper::{Request, Response};
+use hyper_util::client::legacy::Client;
+use hyper_util::client::legacy::connect::HttpConnector;
 use std::convert::TryInto;
 use tracing::{error, info, trace};
-use crate::upgrade::upgrade;
 
-pub fn add_header_claims(req: &mut Request<Body>, claims: Claims) -> Result<()> {
+pub fn add_header_claims(req: &mut Request<Incoming>, claims: Claims) -> Result<()> {
     let headers = req.headers_mut();
     headers.insert("X-Seal-Username", claims.subject.try_into()?);
     headers.insert("X-Seal-Mechanism", claims.issuer.try_into()?);
@@ -17,10 +24,10 @@ pub fn add_header_claims(req: &mut Request<Body>, claims: Claims) -> Result<()> 
 
 #[tracing::instrument(skip(req, client, target))]
 pub async fn route(
-    mut req: Request<Body>,
-    client: &Client<HttpConnector>,
+    mut req: Request<BoxBody<Bytes, hyper::Error>>,
+    client: &Client<HttpConnector, BoxBody<Bytes, hyper::Error>>,
     target: &Target,
-) -> Result<Response<Body>> {
+) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
     let path = req.uri().path();
     assert!(path.starts_with("/"));
 
@@ -36,12 +43,12 @@ pub async fn route(
     } else {
         *req.uri_mut() = uri;
         let resp = match client.request(req).await {
-            Ok(resp) => resp,
+            Ok(resp) => resp.map(BodyExt::boxed),
             Err(err) => {
                 error!("gateway error: {}", err);
                 Response::builder()
                     .status(StatusCode::BAD_GATEWAY)
-                    .body(hyper::Body::empty())?
+                    .body(empty_body())?
             }
         };
 

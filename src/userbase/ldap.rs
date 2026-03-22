@@ -1,6 +1,6 @@
-use anyhow::Result;
 use crate::config::LdapConf;
 use crate::userbase::{DynUserBase, LookupResult, UserBase};
+use anyhow::Result;
 use ldap3::SearchEntry;
 use url::Url;
 
@@ -30,14 +30,19 @@ impl UserBase for Ldap {
 
         let query = format!("{}={}", self.user_attr, user);
 
-        let (data, _) = ldap.search(&self.base_dn,
-                                 ldap3::Scope::OneLevel, &query, &["*"]).await?
+        let (data, _) = ldap
+            .search(&self.base_dn, ldap3::Scope::OneLevel, &query, &["*"])
+            .await?
             .success()?;
 
         match data.len() {
             0 => return Ok(LookupResult::NoSuchUser),
             1 => (),
-            _ => return Ok(LookupResult::Other("user lookup returned more than one user".to_owned()))
+            _ => {
+                return Ok(LookupResult::Other(
+                    "user lookup returned more than one user".to_owned(),
+                ))
+            }
         };
 
         for result in data {
@@ -49,7 +54,7 @@ impl UserBase for Ldap {
             return Ok(match result.rc {
                 0 => LookupResult::Success,
                 49 => LookupResult::IncorrectPassword,
-                _ => LookupResult::Other(format!("error from LDAP bind: {}", result))
+                _ => LookupResult::Other(format!("error from LDAP bind: {}", result)),
             });
         }
 

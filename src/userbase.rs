@@ -1,10 +1,10 @@
-mod userpass;
 mod ldap;
+mod userpass;
 
 use crate::config::UserBaseConf;
+use crate::userbase::ldap::Ldap;
 use crate::userbase::userpass::UserPass;
 use anyhow::Result;
-use crate::userbase::ldap::Ldap;
 
 #[derive(Debug)]
 pub enum LookupResult {

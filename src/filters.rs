@@ -7,8 +7,12 @@ mod redirect;
 pub use basic::BasicFilter;
 
 use anyhow::Result;
-use hyper::{client::HttpConnector, Client};
-use hyper::{Body, Request, Response, StatusCode};
+use bytes::Bytes;
+use http_body_util::combinators::BoxBody;
+use http_body_util::{BodyExt, Empty};
+use hyper::body::Incoming;
+use hyper::{Request, Response, StatusCode};
+use hyper_util::client::legacy::{connect::HttpConnector, Client};
 
 use crate::config::{Config, FilterConf};
 use crate::filters::anonymous::AnonymousFilter;
@@ -21,7 +25,7 @@ use crate::state::State;
 type DynFilter = dyn Filter + Send + Sync + 'static;
 
 pub struct Context<'a> {
-    client: Client<HttpConnector>,
+    client: Client<HttpConnector, BoxBody<Bytes, hyper::Error>>,
     state: &'a State,
     rest: &'a [Box<DynFilter>],
 }
@@ -35,7 +39,10 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub async fn next(self, req: Request<Body>) -> Result<Response<Body>> {
+    pub async fn next(
+        self,
+        req: Request<Incoming>,
+    ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
         match self.rest.split_first() {
             Some((head, rest)) => {
                 let ctx = Context {
@@ -47,26 +54,40 @@ impl<'a> Context<'a> {
             }
             None => Ok(Response::builder()
                 .status(StatusCode::UNAUTHORIZED)
-                .body(Body::empty())?),
+                .body(empty_body())?),
         }
     }
 
-    pub async fn finish(&self, req: Request<Body>) -> Result<Response<Body>> {
+    pub async fn finish(
+        &self,
+        req: Request<Incoming>,
+    ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
+        let req = req.map(BodyExt::boxed);
         crate::target::route(req, &self.client, &self.state.config.target).await
     }
 
     pub fn establish_session(
         &self,
-        resp: Response<Body>,
+        resp: Response<BoxBody<Bytes, hyper::Error>>,
         claims: Claims,
-    ) -> Result<Response<Body>> {
+    ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
         crate::session::establish_session(resp, claims, &self.state)
     }
 }
 
+pub fn empty_body() -> BoxBody<Bytes, hyper::Error> {
+    Empty::<Bytes>::new()
+        .map_err(|never| match never {})
+        .boxed()
+}
+
 #[async_trait::async_trait]
 pub trait Filter {
-    async fn apply(&self, req: Request<Body>, ctx: Context<'_>) -> Result<Response<Body>>;
+    async fn apply(
+        &self,
+        req: Request<Incoming>,
+        ctx: Context<'_>,
+    ) -> Result<Response<BoxBody<Bytes, hyper::Error>>>;
 }
 
 pub struct FilterChain {

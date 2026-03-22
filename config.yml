@@ -11,15 +11,18 @@ filters:
 
   - form_login:
       path: /login
-      user_base: &ldap_settings
-        ldap:
-          url: "ldap://localhost:10389/"
-          base_dn: "ou=people,dc=planetexpress,dc=com"
+      user_base: &user_base
+        user_pass:
+          users:
+            - [fry, seymour]
+        # ldap:
+        #   url: "ldap://localhost:10389/"
+        #   base_dn: "ou=people,dc=planetexpress,dc=com"
 
   - cookie_session:
 
   - basic:
-      user_base: *ldap_settings
+      user_base: *user_base
 
   - redirect:
       location: /login
@@ -29,4 +32,4 @@ session:
   public_key_file: public.pem
 
 target:
-  url: http://localhost:8080/
+  url: http://localhost:10000/

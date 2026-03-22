@@ -1,6 +1,6 @@
 use anyhow::Result;
-use tracing_subscriber::{fmt, EnvFilter};
 use tracing_subscriber::prelude::*;
+use tracing_subscriber::{fmt, EnvFilter};
 
 pub fn setup() -> Result<()> {
     let use_json = false; // TODO

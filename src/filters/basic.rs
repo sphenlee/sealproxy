@@ -1,13 +1,17 @@
+use anyhow::Result;
+use base64::Engine;
+use bytes::Bytes;
+use http_body_util::combinators::BoxBody;
+use hyper::body::Incoming;
+use hyper::header;
+use hyper::{Request, Response, StatusCode};
+use tracing::{debug, info, trace};
+
 use crate::config::BasicFilterConf;
-use crate::filters::{Context, Filter};
+use crate::filters::{empty_body, Context, Filter};
 use crate::session::Claims;
 use crate::target::add_header_claims;
 use crate::userbase::{get_user_base, DynUserBase, LookupResult};
-use anyhow::Result;
-use base64::Engine;
-use hyper::header;
-use hyper::{Body, Request, Response, StatusCode};
-use tracing::{debug, info, trace};
 
 pub struct BasicFilter {
     user_base: Box<DynUserBase>,
@@ -21,11 +25,12 @@ impl BasicFilter {
     }
 }
 
-fn unauthorized() -> Result<Response<Body>> {
-    Ok(Response::builder()
+fn unauthorized() -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
+    let response = Response::builder()
         .status(StatusCode::UNAUTHORIZED)
         .header(header::WWW_AUTHENTICATE, "Basic")
-        .body(Body::empty())?)
+        .body(empty_body())?;
+    Ok(response)
 }
 
 struct BasicAuth {
@@ -33,7 +38,7 @@ struct BasicAuth {
     password: String,
 }
 
-fn get_basic_auth(req: &Request<Body>) -> Result<Option<BasicAuth>> {
+fn get_basic_auth(req: &Request<Incoming>) -> Result<Option<BasicAuth>> {
     // TODO - fix this horrible if let cascade
     let Some(authn) = req.headers().get(header::AUTHORIZATION) else {
         trace!("Authorization header not present");
@@ -67,7 +72,11 @@ fn get_basic_auth(req: &Request<Body>) -> Result<Option<BasicAuth>> {
 #[async_trait::async_trait]
 impl Filter for BasicFilter {
     #[tracing::instrument(skip(self, req, ctx))]
-    async fn apply(&self, mut req: Request<Body>, ctx: Context<'_>) -> Result<Response<Body>> {
+    async fn apply(
+        &self,
+        mut req: Request<Incoming>,
+        ctx: Context<'_>,
+    ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
         let Some(basic_auth) = get_basic_auth(&req)? else {
             trace!("conditions not met, not using Basic authorization");
             return ctx.next(req).await;

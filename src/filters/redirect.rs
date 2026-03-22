@@ -1,8 +1,11 @@
 use crate::config::RedirectFilterConf;
-use crate::filters::{Context, Filter};
+use crate::filters::{empty_body, Context, Filter};
 use crate::path_match::PathMatch;
 use anyhow::Result;
-use hyper::{header, Body, Request, Response, StatusCode};
+use bytes::Bytes;
+use http_body_util::combinators::BoxBody;
+use hyper::body::Incoming;
+use hyper::{header, Request, Response, StatusCode};
 
 pub struct RedirectFilter {
     location: String,
@@ -19,7 +22,7 @@ impl RedirectFilter {
         })
     }
 
-    fn redirect(&self, req: &Request<Body>) -> Result<Response<Body>> {
+    fn redirect(&self, req: &Request<Incoming>) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
         let mut url = self.location.clone();
         if self.with_return {
             let ret = req.uri().to_string();
@@ -32,17 +35,22 @@ impl RedirectFilter {
             url.push_str(&q);
         }
 
-        Ok(Response::builder()
+        let response = Response::builder()
             .status(StatusCode::SEE_OTHER)
             .header(header::LOCATION, url.as_str())
-            .body(Body::empty())?)
+            .body(empty_body())?;
+        Ok(response)
     }
 }
 
 #[async_trait::async_trait]
 impl Filter for RedirectFilter {
     #[tracing::instrument(skip(self, req, ctx))]
-    async fn apply(&self, req: Request<Body>, ctx: Context<'_>) -> Result<Response<Body>> {
+    async fn apply(
+        &self,
+        req: Request<Incoming>,
+        ctx: Context<'_>,
+    ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
         let path = req.uri().path();
 
         if self.matcher.matches(path)? {

@@ -3,9 +3,14 @@ use std::sync::Arc;
 
 use anyhow::{Context as _, Result};
 use arc_swap::ArcSwapOption;
+use bytes::Bytes;
 use futures_util::stream::StreamExt;
-use hyper::client::{Client, HttpConnector};
-use hyper::{Body, Request, Response};
+use http_body_util::combinators::BoxBody;
+use hyper::body::Incoming;
+use hyper::{Request, Response};
+use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::TokioExecutor;
 use inotify::{EventOwned, WatchMask};
 use once_cell::sync::Lazy;
 use tracing::{info, trace, warn};
@@ -13,13 +18,13 @@ use tracing::{info, trace, warn};
 use crate::config;
 use crate::config::Config;
 use crate::filters::{Context, FilterChain};
-use jsonwebtoken::{EncodingKey, DecodingKey};
+use jsonwebtoken::{DecodingKey, EncodingKey};
 
 pub static STATE: Lazy<ArcSwapOption<State>> = Lazy::new(ArcSwapOption::empty);
 
 pub struct State {
     pub config: Config,
-    pub client: Client<HttpConnector>,
+    pub client: Client<HttpConnector, BoxBody<Bytes, hyper::Error>>,
     pub session_key: EncodingKey,
     pub session_pub_key: DecodingKey,
     pub filters: FilterChain,
@@ -39,21 +44,26 @@ impl State {
 
         Ok(State {
             config,
-            client: Client::new(),
+            client: Client::builder(TokioExecutor::new()).build_http(),
             session_key,
             session_pub_key,
             filters,
         })
     }
 
-    pub async fn handle(&self, req: Request<Body>) -> Result<Response<Body>> {
+    pub async fn handle(
+        &self,
+        req: Request<Incoming>,
+    ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
         let ctx = Context::new(&self);
         ctx.next(req).await
     }
 }
 
 pub fn init(config_file: impl AsRef<Path>) -> Result<Arc<State>> {
-    let config_file = config_file.as_ref().canonicalize()
+    let config_file = config_file
+        .as_ref()
+        .canonicalize()
         .context("config file path cannot be resolved")?;
     trace!(?config_file, "config file");
 

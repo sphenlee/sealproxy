@@ -61,7 +61,7 @@ fn default_true() -> bool {
 #[derive(Deserialize, Debug)]
 pub struct RedirectFilterConf {
     pub location: String,
-    #[serde(default="default_true")]
+    #[serde(default = "default_true")]
     pub with_return: bool,
     #[serde(default)]
     pub paths: Vec<String>,
@@ -106,7 +106,7 @@ pub struct Config {
     pub server: Server,
     pub target: Target,
     pub session: Session,
-    #[serde(with="serde_yaml::with::singleton_map_recursive")]
+    #[serde(with = "serde_yaml::with::singleton_map_recursive")]
     pub filters: Vec<FilterConf>,
 }
 
