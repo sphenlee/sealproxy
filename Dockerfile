@@ -1,4 +1,4 @@
-FROM rust:1.67.0-bullseye AS build
+FROM rust:1.94.0-bullseye AS build
 
 WORKDIR /usr/src/app
 
