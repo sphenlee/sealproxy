@@ -1,0 +1,17 @@
+issuer: http://localhost:5556/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+staticClients:
+  - id: seal
+    redirectURIs:
+      - 'https://localhost:8080/oauth2/callback'
+    name: 'SealProxy'
+    secret: NmJkYjQzMTA1OWQwYzFjMjVhMTEyYzZhYzUwMTczYzVkMzVhMDVhYwo=
+enablePasswordDB: true
+staticPasswords:
+  - email: "admin@example.com"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "admin"
+    userID: "1234"

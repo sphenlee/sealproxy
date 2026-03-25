@@ -2,6 +2,7 @@ mod anonymous;
 mod basic;
 mod cookie_session;
 mod form_login;
+mod oauth2;
 mod redirect;
 
 pub use basic::BasicFilter;
@@ -18,6 +19,7 @@ use crate::config::{Config, FilterConf};
 use crate::filters::anonymous::AnonymousFilter;
 use crate::filters::cookie_session::CookieSessionFilter;
 use crate::filters::form_login::FormLoginFilter;
+use crate::filters::oauth2::Oauth2Filter;
 use crate::filters::redirect::RedirectFilter;
 use crate::session::Claims;
 use crate::state::State;
@@ -111,6 +113,9 @@ impl FilterChain {
                 }
                 FilterConf::FormLogin(config) => {
                     chain.add(FormLoginFilter::new(config)?);
+                }
+                FilterConf::Oauth2(config) => {
+                    chain.add(Oauth2Filter::new(config)?);
                 }
                 FilterConf::Redirect(config) => chain.add(RedirectFilter::new(config)?),
             }

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{format_err, Result};
 use bytes::Bytes;
 use futures_util::StreamExt;
 use http_body_util::combinators::BoxBody;
@@ -6,14 +6,19 @@ use hyper::body::Incoming;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
-use hyper_util::rt::TokioIo;
+use hyper_util::rt::{TokioExecutor, TokioIo};
+use hyper_util::server::conn::auto;
+use hyper_util::server::graceful::GracefulShutdown;
+use rustls::crypto::aws_lc_rs;
 use std::net::SocketAddr;
 use tls_listener::TlsListener;
 use tokio::net::TcpListener;
+use tokio::signal::unix::{signal, SignalKind};
 use tokio_rustls::TlsAcceptor;
 use tracing::{info, warn};
 use uuid::Uuid;
 
+use crate::config::TlsConfig;
 use crate::filters::empty_body;
 use crate::state::STATE;
 use crate::tls::get_server_tls_config;
@@ -55,6 +60,10 @@ async fn main() -> anyhow::Result<()> {
 
     logging::setup().expect("logging setup failed");
 
+    aws_lc_rs::default_provider()
+        .install_default()
+        .map_err(|_| format_err!("failed to install crypto provider"))?;
+
     let app = clap::Command::new("sealproxy")
         .author("Steve Lee <sphen.lee@gmail.com>")
         .arg(
@@ -83,53 +92,96 @@ async fn main() -> anyhow::Result<()> {
     let incoming = TcpListener::bind(addr).await?;
 
     if let Some(tls_config) = &state.config.server.tls {
-        let server_config = get_server_tls_config(tls_config)?;
-
-        let acceptor = TlsAcceptor::from(server_config);
-
         info!("server listening for HTTPS on {:?}", addr);
-
-        TlsListener::new(acceptor, incoming)
-            .connections()
-            .filter_map(|conn| {
-                std::future::ready(match conn {
-                    Err(err) => {
-                        eprintln!("Error: {:?}", err);
-                        None
-                    }
-                    Ok(c) => Some(TokioIo::new(c)),
-                })
-            })
-            .for_each_concurrent(None, |conn| async {
-                if let Err(err) = http1::Builder::new()
-                    .serve_connection(conn, service_fn(handle))
-                    .with_upgrades()
-                    .await
-                {
-                    eprintln!("Error serving connection: {:?}", err);
-                }
-            })
-            .await;
+        serve_https(incoming, tls_config).await?;
     } else {
         info!("server listening for HTTP on {:?}", addr);
+        serve_http(incoming).await?;
+    }
 
-        // We start a loop to continuously accept incoming connections
-        loop {
-            let (stream, _) = incoming.accept().await?;
+    Ok(())
+}
 
-            let io = TokioIo::new(stream);
+async fn serve_https(incoming: TcpListener, tls_config: &TlsConfig) -> anyhow::Result<()> {
+    let server_config = get_server_tls_config(tls_config)?;
+    let acceptor = TlsAcceptor::from(server_config);
+    let server = auto::Builder::new(TokioExecutor::new());
 
-            tokio::task::spawn(async move {
-                if let Err(err) = http1::Builder::new()
-                    .serve_connection(io, service_fn(handle))
-                    .with_upgrades()
-                    .await
-                {
-                    eprintln!("Error serving connection: {:?}", err);
-                }
-            });
+    let mut sigterm = signal(SignalKind::terminate())?;
+    let graceful = GracefulShutdown::new();
+
+    let mut listener = TlsListener::new(acceptor, incoming);
+
+    loop {
+        tokio::select! {
+            conn = listener.accept() => {
+                let stream = match conn {
+                    Ok((stream, _addr)) => TokioIo::new(stream),
+                    Err(e) => {
+                        warn!("accept error: {}", e);
+                        continue;
+                    }
+                };
+
+
+                let conn = server.serve_connection_with_upgrades(stream, service_fn(handle));
+                let conn = graceful.watch(conn.into_owned());
+
+                tokio::spawn(async move {
+                    if let Err(err) = conn.await {
+                        warn!("connection error: {}", err);
+                    }
+                });
+            },
+
+            _ = sigterm.recv() => {
+                info!("Received SIGTERM, shutting down gracefully");
+                drop(listener);
+                break;
+            }
         }
     }
 
+    graceful.shutdown().await;
+    Ok(())
+}
+
+async fn serve_http(incoming: TcpListener) -> anyhow::Result<()> {
+    let server = auto::Builder::new(TokioExecutor::new());
+
+    let mut sigterm = signal(SignalKind::terminate())?;
+    let graceful = GracefulShutdown::new();
+
+    loop {
+        tokio::select! {
+            conn = incoming.accept() => {
+                let stream = match conn {
+                    Ok((stream, _addr)) => TokioIo::new(stream),
+                    Err(e) => {
+                        warn!("accept error: {}", e);
+                        continue;
+                    }
+                };
+
+
+                let conn = server.serve_connection_with_upgrades(stream, service_fn(handle));
+                let conn = graceful.watch(conn.into_owned());
+
+                tokio::spawn(async move {
+                    if let Err(err) = conn.await {
+                        warn!("connection error: {}", err);
+                    }
+                });
+            },
+
+            _ = sigterm.recv() => {
+                info!("Received SIGTERM, shutting down gracefully");
+                drop(incoming);
+                break;
+            }
+        }
+    }
+
+    graceful.shutdown().await;
     Ok(())
 }

@@ -20,5 +20,5 @@ build:
     cargo build --release
 
 # build Sealproxy into a docker image for local use
-package: build
+package:
     docker build . -t sealproxy:local

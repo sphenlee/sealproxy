@@ -1,8 +1,8 @@
 server:
-  bind: 127.0.0.1:3000
+  bind: 0.0.0.0:8080
   tls:
-    cert_file: localhost.crt
-    key_file: localhost.key
+    cert_file: /etc/sealproxy/localhost.crt
+    key_file: /etc/sealproxy/localhost.key
 
 filters:
   - anonymous:
@@ -11,25 +11,37 @@ filters:
 
   - form_login:
       path: /login
-      user_base: &user_base
-        user_pass:
-          users:
-            - [fry, seymour]
-        # ldap:
-        #   url: "ldap://localhost:10389/"
-        #   base_dn: "ou=people,dc=planetexpress,dc=com"
+      user_base:
+        ldap:
+          url: "ldap://localhost:10389/"
+          base_dn: "ou=people,dc=planetexpress,dc=com"
+
+  - oauth2:
+      path: /oauth
+      redirect_url: "https://localhost:8080/oauth2/callback"
+      auth_url: "http://localhost:5556/dex/auth"
+      token_url: "http://dex:5556/dex/token"
+      client_id: "seal"
+      client_secret: "NmJkYjQzMTA1OWQwYzFjMjVhMTEyYzZhYzUwMTczYzVkMzVhMDVhYwo="
+      scopes:
+        - "openid"
+        - "profile"
+      success_redirect: "/"
 
   - cookie_session:
 
   - basic:
-      user_base: *user_base
+      user_base:
+        user_pass:
+          users:
+             - ["fry", "seymour"]
 
   - redirect:
       location: /login
 
 session:
-  private_key_file: private.pem
-  public_key_file: public.pem
+  private_key_file: /etc/sealproxy/private.pem
+  public_key_file: /etc/sealproxy/public.pem
 
 target:
-  url: http://localhost:10000/
+  url: http://echo-server:8080/

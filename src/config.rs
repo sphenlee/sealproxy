@@ -78,6 +78,20 @@ pub struct BasicFilterConf {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct Oauth2FilterConf {
+    pub path: String,
+    pub redirect_url: Url,
+    pub auth_url: Url,
+    pub token_url: Url,
+    pub client_id: String,
+    pub client_secret: String,
+    #[serde(default)]
+    pub scopes: Vec<String>,
+    #[serde(default)]
+    pub success_redirect: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct FormLoginConf {
     pub path: String,
     pub success_redirect: Option<String>,
@@ -93,6 +107,7 @@ pub enum FilterConf {
     Basic(BasicFilterConf),
     FormLogin(FormLoginConf),
     Redirect(RedirectFilterConf),
+    Oauth2(Oauth2FilterConf),
 }
 
 #[derive(Deserialize, Debug)]
