@@ -4,13 +4,13 @@ use crate::session::Claims;
 use crate::upgrade::upgrade;
 use anyhow::Result;
 use bytes::Bytes;
-use http_body_util::BodyExt;
 use http_body_util::combinators::BoxBody;
+use http_body_util::BodyExt;
 use hyper::body::Incoming;
 use hyper::{header, StatusCode, Uri};
 use hyper::{Request, Response};
-use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::client::legacy::Client;
 use std::convert::TryInto;
 use tracing::{error, info, trace};
 

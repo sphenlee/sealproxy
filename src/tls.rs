@@ -1,8 +1,8 @@
 use crate::config::TlsConfig;
 use anyhow::{Context, Result};
-use rustls::ServerConfig;
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use rustls::ServerConfig;
 use std::fs::File;
 use std::io::BufReader;
 use std::sync::Arc;

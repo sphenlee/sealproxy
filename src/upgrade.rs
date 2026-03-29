@@ -3,8 +3,8 @@ use bytes::Bytes;
 use http_body_util::combinators::BoxBody;
 use hyper::upgrade::Upgraded;
 use hyper::{Request, Response, Uri};
-use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioIo;
 use tracing::{info, trace, warn};
 

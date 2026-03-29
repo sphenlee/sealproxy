@@ -5,7 +5,7 @@ use cookie::time::Duration as CookieDuration;
 use cookie::{Cookie, SameSite};
 use http_body_util::combinators::BoxBody;
 use hyper::header::{self, HeaderValue};
-use hyper::{Response};
+use hyper::Response;
 use jsonwebtoken::{Algorithm, Header};
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};

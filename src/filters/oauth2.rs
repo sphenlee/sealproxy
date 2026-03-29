@@ -1,7 +1,7 @@
 use crate::config::Oauth2FilterConf;
 use crate::filters::{empty_body, Context, Filter};
 use crate::session::Claims;
-use anyhow::{Context as _, Result, anyhow};
+use anyhow::{anyhow, Context as _, Result};
 use bytes::Bytes;
 use cookie::{Cookie, SameSite};
 use http_body_util::combinators::BoxBody;
@@ -9,7 +9,10 @@ use hyper::body::Incoming;
 use hyper::header;
 use hyper::{Method, Request, Response, StatusCode};
 use oauth2::basic::BasicClient;
-use oauth2::{AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, EndpointNotSet, EndpointSet, RedirectUrl, Scope, TokenResponse, TokenUrl};
+use oauth2::{
+    AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, EndpointNotSet, EndpointSet,
+    RedirectUrl, Scope, TokenResponse, TokenUrl,
+};
 use rand::Rng;
 use tracing::info;
 
@@ -25,18 +28,18 @@ pub struct Oauth2Filter {
 
 impl Oauth2Filter {
     pub fn new(config: &Oauth2FilterConf) -> Result<Self> {
-        let callback_path = config.redirect_url
-            .path()
-            .to_string();
+        let callback_path = config.redirect_url.path().to_string();
 
-        let client = BasicClient::new(
-            ClientId::new(config.client_id.clone()))
+        let client = BasicClient::new(ClientId::new(config.client_id.clone()))
             .set_client_secret(ClientSecret::new(config.client_secret.clone()))
             .set_auth_uri(AuthUrl::from_url(config.auth_url.clone()))
             .set_token_uri(TokenUrl::from_url(config.token_url.clone()))
             .set_redirect_uri(RedirectUrl::from_url(config.redirect_url.clone()));
 
-        let success_redirect = config.success_redirect.clone().unwrap_or_else(|| "/".to_owned());
+        let success_redirect = config
+            .success_redirect
+            .clone()
+            .unwrap_or_else(|| "/".to_owned());
 
         let http_client = oauth2::reqwest::ClientBuilder::new()
             .redirect(oauth2::reqwest::redirect::Policy::none())
@@ -87,7 +90,10 @@ impl Oauth2Filter {
             .to_string()
     }
 
-    async fn handle_login(&self, _req: Request<Incoming>) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
+    async fn handle_login(
+        &self,
+        _req: Request<Incoming>,
+    ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
         let state: String = (0..32)
             .map(|_| rand::thread_rng().sample(rand::distributions::Alphanumeric) as char)
             .collect();
@@ -122,12 +128,15 @@ impl Oauth2Filter {
             .into_owned()
             .collect();
 
-        let code = params.get("code").ok_or_else(|| anyhow!("missing code parameter"))?;
-        let state = params.get("state").ok_or_else(|| anyhow!("missing state parameter"))?;
+        let code = params
+            .get("code")
+            .ok_or_else(|| anyhow!("missing code parameter"))?;
+        let state = params
+            .get("state")
+            .ok_or_else(|| anyhow!("missing state parameter"))?;
 
-        let cookie_state = Self::find_cookie_value(&req, "oauth2_state").ok_or_else(|| {
-            anyhow!("missing oauth2_state cookie for callback state validation")
-        })?;
+        let cookie_state = Self::find_cookie_value(&req, "oauth2_state")
+            .ok_or_else(|| anyhow!("missing oauth2_state cookie for callback state validation"))?;
 
         if &cookie_state != state {
             return Err(anyhow!("oauth2 state mismatch"));
