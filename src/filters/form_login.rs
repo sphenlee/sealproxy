@@ -63,11 +63,11 @@ impl Filter for FormLoginFilter {
             return ctx.next(req).await;
         }
 
-        match req.method() {
-            &Method::POST => {
+        match *req.method() {
+            Method::POST => {
                 trace!("post to login path");
             }
-            &Method::GET => {
+            Method::GET => {
                 // GET is passed to the backend to serve up the login page
                 return ctx.finish(req).await;
             }

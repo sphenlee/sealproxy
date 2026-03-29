@@ -11,7 +11,7 @@ pub struct Ldap {
 }
 
 impl Ldap {
-    pub fn new(config: &LdapConf) -> Result<Box<DynUserBase>> {
+    pub fn from_config(config: &LdapConf) -> Result<Box<DynUserBase>> {
         Ok(Box::new(Ldap {
             url: config.url.clone(),
             user_attr: config.user_attr.clone().unwrap_or("uid".into()),
@@ -45,19 +45,16 @@ impl UserBase for Ldap {
             }
         };
 
-        for result in data {
-            let parsed = SearchEntry::construct(result);
-            let user_dn = parsed.dn;
+        let result = data.into_iter().next().expect("at least one search result");
+        let parsed = SearchEntry::construct(result);
+        let user_dn = parsed.dn;
 
-            let result = ldap.simple_bind(&user_dn, password).await?;
+        let result = ldap.simple_bind(&user_dn, password).await?;
 
-            return Ok(match result.rc {
-                0 => LookupResult::Success,
-                49 => LookupResult::IncorrectPassword,
-                _ => LookupResult::Other(format!("error from LDAP bind: {}", result)),
-            });
-        }
-
-        unreachable!()
+        Ok(match result.rc {
+            0 => LookupResult::Success,
+            49 => LookupResult::IncorrectPassword,
+            _ => LookupResult::Other(format!("error from LDAP bind: {}", result)),
+        })
     }
 }

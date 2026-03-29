@@ -55,7 +55,7 @@ impl State {
         &self,
         req: Request<Incoming>,
     ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
-        let ctx = Context::new(&self);
+        let ctx = Context::new(self);
         ctx.next(req).await
     }
 }
@@ -84,7 +84,7 @@ fn start_file_watch(config_file: &Path) -> Result<()> {
     let watch = inotify::Inotify::init()?;
     watch
         .watches()
-        .add(&dir, WatchMask::CLOSE_WRITE | WatchMask::MOVED_TO)
+        .add(dir, WatchMask::CLOSE_WRITE | WatchMask::MOVED_TO)
         .context("error adding inotify watch on directory")?;
 
     tokio::task::spawn(async move {

@@ -108,7 +108,7 @@ pub enum FilterConf {
     Basic(BasicFilterConf),
     FormLogin(FormLoginConf),
     Redirect(RedirectFilterConf),
-    Oauth2(Oauth2FilterConf),
+    Oauth2(Box<Oauth2FilterConf>),
 }
 
 #[derive(Deserialize, Debug)]

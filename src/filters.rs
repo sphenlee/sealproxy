@@ -73,7 +73,7 @@ impl<'a> Context<'a> {
         resp: Response<BoxBody<Bytes, hyper::Error>>,
         claims: Claims,
     ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
-        crate::session::establish_session(resp, claims, &self.state)
+        crate::session::establish_session(resp, claims, self.state)
     }
 }
 

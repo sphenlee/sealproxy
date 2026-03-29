@@ -42,7 +42,7 @@ impl CookieSessionFilter {
             }
         }
 
-        return Ok(None);
+        Ok(None)
     }
 }
 
@@ -54,7 +54,7 @@ impl Filter for CookieSessionFilter {
         mut req: Request<Incoming>,
         ctx: Context<'_>,
     ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
-        if let Some(claims) = self.get_cookie(&req, &ctx.state)? {
+        if let Some(claims) = self.get_cookie(&req, ctx.state)? {
             debug!("valid session cookie provided");
 
             add_header_claims(

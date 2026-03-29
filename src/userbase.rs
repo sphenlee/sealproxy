@@ -23,7 +23,7 @@ pub trait UserBase {
 
 pub fn get_user_base(conf: &UserBaseConf) -> Result<Box<DynUserBase>> {
     Ok(match conf {
-        UserBaseConf::Ldap(conf) => Ldap::new(conf)?,
+        UserBaseConf::Ldap(conf) => Ldap::from_config(conf)?,
         UserBaseConf::UserPass(conf) => Box::new(UserPass::new(conf)),
     })
 }
