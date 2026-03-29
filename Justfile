@@ -11,10 +11,6 @@ gen-keypair:
 gen-tlscert:
     mkcert -key-file localhost.key -cert-file localhost.crt localhost
 
-# luanch the testing LDAP server
-start-ldap:
-    docker run --rm -p 10389:10389 rroemhild/test-openldap
-
 # do a full release build
 build:
     cargo build --release
@@ -22,3 +18,7 @@ build:
 # build Sealproxy into a docker image for local use
 package:
     docker build . -t sealproxy:local
+
+# start everything in docker
+up:
+    docker-compose up

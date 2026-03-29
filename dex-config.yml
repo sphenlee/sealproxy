@@ -1,17 +1,36 @@
 issuer: http://localhost:5556/dex
+
 storage:
   type: memory
 web:
   http: 0.0.0.0:5556
+
 staticClients:
   - id: seal
     redirectURIs:
       - 'https://localhost:8080/oauth2/callback'
     name: 'SealProxy'
     secret: NmJkYjQzMTA1OWQwYzFjMjVhMTEyYzZhYzUwMTczYzVkMzVhMDVhYwo=
-enablePasswordDB: true
-staticPasswords:
-  - email: "admin@example.com"
-    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
-    username: "admin"
-    userID: "1234"
+
+connectors:
+- type: ldap
+  id: ldap
+  name: LDAP
+  config:
+    host: openldap:10636
+
+    #rootCA: /etc/ldap/ssl/ldap.crt
+    insecureSkipVerify: true
+    bindDN: cn=admin,dc=planetexpress,dc=com
+    bindPW: GoodNewsEveryone
+
+    usernamePrompt: SSO Username
+
+    userSearch:
+      baseDN: ou=people,dc=planetexpress,dc=com
+      filter: "(objectClass=inetOrgPerson)"
+      username: uid
+      idAttr: uid
+      emailAttr: mail
+      nameAttr: cn
+      preferredUsernameAttr: uid

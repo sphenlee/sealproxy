@@ -44,9 +44,10 @@ pub fn establish_session(
     let jwt = jsonwebtoken::encode(&header, &jwt_claims, &state.session_key)?;
 
     let cookie = Cookie::build(Cookie::new(SESSION_COOKIE, jwt))
-        .secure(false) // TODO - unsecure until HTTPS is enabled by default
+        .secure(state.config.server.tls.is_some())
         .same_site(SameSite::Strict)
         .max_age(CookieDuration::days(1))
+        .path("/")
         .to_string();
 
     let header = HeaderValue::from_str(&cookie)?;

@@ -1,7 +1,7 @@
 use crate::config::Oauth2FilterConf;
 use crate::filters::{empty_body, Context, Filter};
 use crate::session::Claims;
-use anyhow::{anyhow, Result};
+use anyhow::{Context as _, Result, anyhow};
 use bytes::Bytes;
 use cookie::{Cookie, SameSite};
 use http_body_util::combinators::BoxBody;
@@ -20,6 +20,7 @@ pub struct Oauth2Filter {
     login_path: String,
     scopes: Vec<String>,
     success_redirect: String,
+    userinfo_url: Option<url::Url>,
 }
 
 impl Oauth2Filter {
@@ -48,10 +49,12 @@ impl Oauth2Filter {
             http_client,
             scopes: config.scopes.clone(),
             success_redirect,
+            userinfo_url: config.userinfo_url.clone(),
         })
     }
 
     fn find_cookie_value(req: &Request<Incoming>, name: &str) -> Option<String> {
+        // TODO - use cookiejat to parse the cookie
         for val in req.headers().get_all(header::COOKIE) {
             if let Ok(s) = val.to_str() {
                 for cookie in s.split(';') {
@@ -135,12 +138,33 @@ impl Oauth2Filter {
             .exchange_code(AuthorizationCode::new(code.to_string()))
             .request_async(&self.http_client)
             .await
-            .map_err(|e| anyhow!("oauth2 token exchange failed: {:?}", e))?;
+            .context("oauth2 token exchange failed")?;
 
-        let subject = token.access_token().secret().to_string();
+        let subject = if let Some(userinfo_url) = &self.userinfo_url {
+            let response = self
+                .http_client
+                .get(userinfo_url.as_str())
+                .bearer_auth(token.access_token().secret())
+                .send()
+                .await
+                .context("failed to request userinfo")?;
+
+            let userinfo: serde_json::Value = response
+                .json()
+                .await
+                .context("failed to read userinfo response")?;
+
+            userinfo["sub"]
+                .as_str()
+                .ok_or_else(|| anyhow!("missing or invalid 'sub' in userinfo"))?
+                .to_string()
+        } else {
+            token.access_token().secret().to_string()
+        };
 
         info!("oauth2 login success for subject {}", subject);
 
+        // TODO - include other claims into the session claims
         let claims = Claims {
             issuer: "seal/oauth2".to_string(),
             subject,

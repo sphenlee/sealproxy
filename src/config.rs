@@ -83,6 +83,7 @@ pub struct Oauth2FilterConf {
     pub redirect_url: Url,
     pub auth_url: Url,
     pub token_url: Url,
+    pub userinfo_url: Option<Url>,
     pub client_id: String,
     pub client_secret: String,
     #[serde(default)]

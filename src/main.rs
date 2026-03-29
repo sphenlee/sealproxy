@@ -1,9 +1,7 @@
-use anyhow::{format_err, Result};
+use anyhow::{anyhow, Result};
 use bytes::Bytes;
-use futures_util::StreamExt;
 use http_body_util::combinators::BoxBody;
 use hyper::body::Incoming;
-use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::{TokioExecutor, TokioIo};
@@ -62,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
 
     aws_lc_rs::default_provider()
         .install_default()
-        .map_err(|_| format_err!("failed to install crypto provider"))?;
+        .map_err(|_| anyhow!("failed to install crypto provider"))?;
 
     let app = clap::Command::new("sealproxy")
         .author("Steve Lee <sphen.lee@gmail.com>")

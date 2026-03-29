@@ -9,18 +9,12 @@ filters:
       paths:
         - "/anon/**"
 
-  - form_login:
-      path: /login
-      user_base:
-        ldap:
-          url: "ldap://localhost:10389/"
-          base_dn: "ou=people,dc=planetexpress,dc=com"
-
   - oauth2:
-      path: /oauth
+      path: /login
       redirect_url: "https://localhost:8080/oauth2/callback"
       auth_url: "http://localhost:5556/dex/auth"
       token_url: "http://dex:5556/dex/token"
+      userinfo_url: "http://dex:5556/dex/userinfo"
       client_id: "seal"
       client_secret: "NmJkYjQzMTA1OWQwYzFjMjVhMTEyYzZhYzUwMTczYzVkMzVhMDVhYwo="
       scopes:
@@ -29,12 +23,6 @@ filters:
       success_redirect: "/"
 
   - cookie_session:
-
-  - basic:
-      user_base:
-        user_pass:
-          users:
-             - ["fry", "seymour"]
 
   - redirect:
       location: /login
