@@ -1,4 +1,4 @@
-FROM rust:1.94.0-bullseye AS build
+FROM rust:1.94.0-trixie AS build
 
 WORKDIR /usr/src/app
 
@@ -10,7 +10,7 @@ RUN --mount=type=cache,target=/usr/local/rustup \
     && mv /usr/src/app/target/release/sealproxy /usr/bin
 
 
-FROM debian:bullseye-slim
+FROM debian:trixie-slim
 
 COPY --from=build /usr/bin/sealproxy /usr/bin
 
