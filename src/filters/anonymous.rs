@@ -1,6 +1,6 @@
 use crate::config::AnonymousFilterConf;
 use crate::filters::{Context, Filter};
-use crate::path_match::PathMatch;
+use crate::r#match::Match;
 use anyhow::Result;
 use bytes::Bytes;
 use http_body_util::combinators::BoxBody;
@@ -9,13 +9,13 @@ use hyper::{Request, Response};
 use tracing::trace;
 
 pub struct AnonymousFilter {
-    matcher: PathMatch,
+    matcher: Match,
 }
 
 impl AnonymousFilter {
     pub fn new(config: &AnonymousFilterConf) -> Result<Self> {
         Ok(AnonymousFilter {
-            matcher: PathMatch::new(&config.paths, &config.not_paths)?,
+            matcher: Match::new(&config.r#match)?,
         })
     }
 }
@@ -28,9 +28,8 @@ impl Filter for AnonymousFilter {
         req: Request<Incoming>,
         ctx: Context<'_>,
     ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
-        let path = req.uri().path();
-
-        if self.matcher.matches(path)? {
+        if self.matcher.matches_request(&req)? {
+            let path = req.uri().path();
             trace!(%path, "allowing anonymous path");
             ctx.finish(req).await
         } else {
@@ -38,3 +37,4 @@ impl Filter for AnonymousFilter {
         }
     }
 }
+

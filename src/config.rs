@@ -15,13 +15,6 @@ pub struct Server {
     pub tls: Option<TlsConfig>,
 }
 
-// #[derive(Deserialize, Debug)]
-// pub struct MatchDef {
-//     pub pattern: String,
-//     pub method: Option<String>,
-//     pub filters: Vec<FilterConf>,
-// }
-
 #[derive(Deserialize, Debug)]
 pub struct LdapConf {
     pub url: Url,
@@ -47,11 +40,20 @@ pub struct Target {
     //pub r#match: Match,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct AnonymousFilterConf {
+#[derive(Deserialize, Debug, Default)]
+pub struct MatchConf {
+    #[serde(default)]
     pub paths: Vec<String>,
     #[serde(default)]
     pub not_paths: Vec<String>,
+    #[serde(default)]
+    pub methods: Vec<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AnonymousFilterConf {
+    #[serde(default)]
+    pub r#match: MatchConf,
 }
 
 fn default_true() -> bool {
@@ -64,9 +66,7 @@ pub struct RedirectFilterConf {
     #[serde(default = "default_true")]
     pub with_return: bool,
     #[serde(default)]
-    pub paths: Vec<String>,
-    #[serde(default)]
-    pub not_paths: Vec<String>,
+    pub r#match: MatchConf,
 }
 
 #[derive(Deserialize, Debug)]

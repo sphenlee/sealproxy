@@ -24,7 +24,7 @@ use crate::tls::get_server_tls_config;
 mod config;
 pub mod filters;
 mod logging;
-pub mod path_match;
+pub mod r#match;
 pub mod session;
 mod state;
 pub mod target;

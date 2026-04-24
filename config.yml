@@ -6,8 +6,10 @@ server:
 
 filters:
   - anonymous:
-      paths:
-        - "/anon/**"
+      match:
+        methods: ["GET"]
+        paths:
+          - "/anon/**"
 
   - oauth2:
       path: /login

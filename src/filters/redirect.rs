@@ -1,6 +1,6 @@
 use crate::config::RedirectFilterConf;
 use crate::filters::{empty_body, Context, Filter};
-use crate::path_match::PathMatch;
+use crate::r#match::Match;
 use anyhow::Result;
 use bytes::Bytes;
 use http_body_util::combinators::BoxBody;
@@ -10,7 +10,7 @@ use hyper::{header, Request, Response, StatusCode};
 pub struct RedirectFilter {
     location: String,
     with_return: bool,
-    matcher: PathMatch,
+    matcher: Match,
 }
 
 impl RedirectFilter {
@@ -18,7 +18,7 @@ impl RedirectFilter {
         Ok(RedirectFilter {
             location: config.location.clone(),
             with_return: config.with_return,
-            matcher: PathMatch::new(&config.paths, &config.not_paths)?,
+            matcher: Match::new(&config.r#match)?,
         })
     }
 
@@ -51,9 +51,7 @@ impl Filter for RedirectFilter {
         req: Request<Incoming>,
         ctx: Context<'_>,
     ) -> Result<Response<BoxBody<Bytes, hyper::Error>>> {
-        let path = req.uri().path();
-
-        if self.matcher.matches(path)? {
+        if self.matcher.matches_request(&req)? {
             return self.redirect(&req);
         }
 
